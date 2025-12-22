@@ -3,15 +3,48 @@ import { QuickActions } from "@/components/dashboard/QuickActions";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { WeeklyBrief } from "@/components/dashboard/WeeklyBrief";
 import { LeadsPipeline } from "@/components/dashboard/LeadsPipeline";
+import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
+import { Skeleton } from "@/components/ui/skeleton";
 import { 
   IndianRupee, 
   MousePointerClick, 
   Users, 
   Calendar,
-  TrendingUp 
 } from "lucide-react";
 
+function MetricSkeleton() {
+  return (
+    <div className="metric-card">
+      <div className="flex items-center justify-between mb-3">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-5 w-5 rounded" />
+      </div>
+      <div className="flex items-end justify-between">
+        <Skeleton className="h-8 w-20" />
+        <Skeleton className="h-4 w-12" />
+      </div>
+      <Skeleton className="h-3 w-16 mt-2" />
+    </div>
+  );
+}
+
+function formatCurrency(value: number): string {
+  if (value >= 100000) {
+    return `₹${(value / 100000).toFixed(1)}L`;
+  }
+  return `₹${value.toLocaleString('en-IN')}`;
+}
+
+function formatNumber(value: number): string {
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(1)}K`;
+  }
+  return value.toLocaleString();
+}
+
 export default function Dashboard() {
+  const { metrics, loading, error } = useDashboardMetrics();
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
@@ -25,41 +58,56 @@ export default function Dashboard() {
       </div>
 
       {/* Metrics Row */}
-      <div className="grid grid-cols-4 gap-4">
-        <MetricCard
-          title="Ad Spend (This Week)"
-          value="₹42,500"
-          change={-8}
-          changeLabel="vs last week"
-          icon={<IndianRupee className="h-5 w-5" />}
-        />
-        <MetricCard
-          title="Total Clicks"
-          value="1,247"
-          change={12}
-          changeLabel="vs last week"
-          icon={<MousePointerClick className="h-5 w-5" />}
-        />
-        <MetricCard
-          title="New Leads"
-          value="47"
-          change={23}
-          changeLabel="vs last week"
-          icon={<Users className="h-5 w-5" />}
-        />
-        <MetricCard
-          title="Bookings"
-          value="12"
-          change={5}
-          changeLabel="vs last week"
-          icon={<Calendar className="h-5 w-5" />}
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {loading ? (
+          <>
+            <MetricSkeleton />
+            <MetricSkeleton />
+            <MetricSkeleton />
+            <MetricSkeleton />
+          </>
+        ) : error ? (
+          <div className="col-span-full text-center py-8 text-muted-foreground">
+            Failed to load metrics. Please try again.
+          </div>
+        ) : (
+          <>
+            <MetricCard
+              title="Ad Spend (This Week)"
+              value={metrics ? formatCurrency(metrics.adSpend) : "₹0"}
+              change={metrics?.adSpendChange}
+              changeLabel="vs last week"
+              icon={<IndianRupee className="h-5 w-5" />}
+            />
+            <MetricCard
+              title="Total Clicks"
+              value={metrics ? formatNumber(metrics.totalClicks) : "0"}
+              change={metrics?.clicksChange}
+              changeLabel="vs last week"
+              icon={<MousePointerClick className="h-5 w-5" />}
+            />
+            <MetricCard
+              title="New Leads"
+              value={metrics ? formatNumber(metrics.newLeads) : "0"}
+              change={metrics?.leadsChange}
+              changeLabel="vs last week"
+              icon={<Users className="h-5 w-5" />}
+            />
+            <MetricCard
+              title="Bookings"
+              value={metrics ? formatNumber(metrics.bookings) : "0"}
+              change={metrics?.bookingsChange}
+              changeLabel="vs last week"
+              icon={<Calendar className="h-5 w-5" />}
+            />
+          </>
+        )}
       </div>
 
       {/* Main Grid */}
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - 2/3 width */}
-        <div className="col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6">
           <WeeklyBrief />
           <QuickActions />
         </div>
