@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
 
-interface Workspace {
+export interface Workspace {
   id: string;
   name: string;
   industry: string | null;
