@@ -12,6 +12,7 @@ import {
   FlaskConical,
   BarChart3,
   Settings,
+  BookOpen,
   Rocket,
   ChevronLeft,
   ChevronRight,
@@ -30,6 +31,7 @@ const navItems = [
   { title: "Automations", href: "/automations", icon: Zap },
   { title: "Experiments", href: "/experiments", icon: FlaskConical },
   { title: "Reports", href: "/reports", icon: BarChart3 },
+  { title: "Documentation", href: "/docs", icon: BookOpen },
   { title: "Settings", href: "/settings", icon: Settings },
 ];
 
