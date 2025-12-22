@@ -20,6 +20,7 @@ import Automations from "./pages/Automations";
 import Experiments from "./pages/Experiments";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
+import Documentation from "./pages/Documentation";
 import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
@@ -69,6 +70,7 @@ const AppRoutes = () => (
     <Route path="/experiments" element={<WithLayout><Experiments /></WithLayout>} />
     <Route path="/reports" element={<WithLayout><Reports /></WithLayout>} />
     <Route path="/settings" element={<WithLayout><Settings /></WithLayout>} />
+    <Route path="/docs" element={<WithLayout><Documentation /></WithLayout>} />
     <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
