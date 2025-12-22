@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { 
@@ -8,7 +9,9 @@ import {
   Clock,
   MoreHorizontal,
   Target,
-  Calendar
+  Calendar,
+  Loader2,
+  Trash2
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -17,55 +20,73 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-const experiments = [
-  {
-    id: 1,
-    hypothesis: "Video testimonials will outperform static images",
-    metric: "Click-through rate",
-    variants: ["Static Before/After", "30s Video Testimonial"],
-    status: "running" as const,
-    daysLeft: 4,
-    currentResult: "+34% for Video",
-    confidence: 92,
-  },
-  {
-    id: 2,
-    hypothesis: "'Free Assessment' CTA converts better than 'Book Now'",
-    metric: "Form submissions",
-    variants: ["Book Now", "Free Assessment", "Get Started"],
-    status: "running" as const,
-    daysLeft: 2,
-    currentResult: "Assessment leading",
-    confidence: 78,
-  },
-  {
-    id: 3,
-    hypothesis: "Social proof in hero increases conversions",
-    metric: "Landing page CVR",
-    variants: ["Without reviews", "With Google reviews badge"],
-    status: "completed" as const,
-    result: "+23% with reviews",
-    winner: "With reviews",
-  },
-  {
-    id: 4,
-    hypothesis: "Price anchoring increases premium tier selection",
-    metric: "Tier selection rate",
-    variants: ["3 tiers equal weight", "Premium highlighted"],
-    status: "backlog" as const,
-  },
-];
-
-const weeklyPlan = [
-  { day: "Mon", task: "Launch headline A/B test", done: true },
-  { day: "Tue", task: "Review video ad performance", done: true },
-  { day: "Wed", task: "Update landing page CTA", done: false },
-  { day: "Thu", task: "Analyze CPL trends", done: false },
-  { day: "Fri", task: "Weekly report & learnings", done: false },
-];
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useExperiments } from "@/hooks/useExperiments";
+import { toast } from "sonner";
 
 export default function Experiments() {
+  const { experiments, loading, createExperiment, updateExperiment, deleteExperiment } = useExperiments();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newExperiment, setNewExperiment] = useState({
+    hypothesis: '',
+    metric: '',
+    variants: '',
+  });
+
+  const handleCreate = async () => {
+    try {
+      await createExperiment({
+        hypothesis: newExperiment.hypothesis,
+        metric: newExperiment.metric || null,
+        variants: newExperiment.variants.split(',').map(v => v.trim()).filter(Boolean),
+      });
+      toast.success('Experiment created');
+      setDialogOpen(false);
+      setNewExperiment({ hypothesis: '', metric: '', variants: '' });
+    } catch (err) {
+      toast.error('Failed to create experiment');
+    }
+  };
+
+  const handleStartExperiment = async (id: string) => {
+    try {
+      await updateExperiment(id, { status: 'running' });
+      toast.success('Experiment started');
+    } catch (err) {
+      toast.error('Failed to start experiment');
+    }
+  };
+
+  const handleEndExperiment = async (id: string) => {
+    try {
+      await updateExperiment(id, { status: 'completed' });
+      toast.success('Experiment ended');
+    } catch (err) {
+      toast.error('Failed to end experiment');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteExperiment(id);
+      toast.success('Experiment deleted');
+    } catch (err) {
+      toast.error('Failed to delete experiment');
+    }
+  };
+
+  const runningCount = experiments.filter(e => e.status === 'running').length;
+  const completedCount = experiments.filter(e => e.status === 'completed').length;
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
@@ -78,17 +99,112 @@ export default function Experiments() {
             Test hypotheses and iterate based on data.
           </p>
         </div>
-        <Button className="gap-2 gradient-primary text-primary-foreground">
-          <Plus className="h-4 w-4" />
-          New Experiment
-        </Button>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="gap-2 gradient-primary text-primary-foreground">
+              <Plus className="h-4 w-4" />
+              New Experiment
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create Experiment</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label>Hypothesis</Label>
+                <Textarea 
+                  value={newExperiment.hypothesis}
+                  onChange={(e) => setNewExperiment(prev => ({ ...prev, hypothesis: e.target.value }))}
+                  placeholder="e.g., Video testimonials will outperform static images"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Metric</Label>
+                <Input 
+                  value={newExperiment.metric}
+                  onChange={(e) => setNewExperiment(prev => ({ ...prev, metric: e.target.value }))}
+                  placeholder="e.g., Click-through rate"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Variants (comma-separated)</Label>
+                <Input 
+                  value={newExperiment.variants}
+                  onChange={(e) => setNewExperiment(prev => ({ ...prev, variants: e.target.value }))}
+                  placeholder="e.g., Control, Variant A, Variant B"
+                />
+              </div>
+              <Button onClick={handleCreate} className="w-full">Create Experiment</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
-        {/* Experiments List */}
-        <div className="col-span-2 space-y-4">
-          <h2 className="text-lg font-semibold text-foreground">Active & Backlog</h2>
-          {experiments.map((exp) => (
+      {/* Summary */}
+      <div className="grid grid-cols-4 gap-4">
+        <Card className="bg-card/50 border-border/50">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-muted-foreground">Running</span>
+              <FlaskConical className="h-4 w-4 text-primary" />
+            </div>
+            <p className="text-2xl font-bold text-foreground">{runningCount}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-card/50 border-border/50">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-muted-foreground">Completed</span>
+              <CheckCircle className="h-4 w-4 text-success" />
+            </div>
+            <p className="text-2xl font-bold text-foreground">{completedCount}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-card/50 border-border/50">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-muted-foreground">Backlog</span>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <p className="text-2xl font-bold text-foreground">
+              {experiments.filter(e => e.status === 'backlog').length}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="bg-card/50 border-border/50">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-muted-foreground">Total</span>
+              <Target className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <p className="text-2xl font-bold text-foreground">{experiments.length}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Experiments List */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-foreground">All Experiments</h2>
+        
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : experiments.length === 0 ? (
+          <Card className="bg-card/50 border-border/50">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <FlaskConical className="h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-foreground font-medium mb-1">No experiments yet</p>
+              <p className="text-sm text-muted-foreground mb-4">Start testing hypotheses to improve performance</p>
+              <Button onClick={() => setDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Experiment
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          experiments.map((exp) => (
             <Card 
               key={exp.id}
               className="bg-card/50 border-border/50 hover:border-border transition-all"
@@ -122,50 +238,28 @@ export default function Experiments() {
                     </div>
                     
                     <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
-                      <span className="flex items-center gap-1">
-                        <Target className="h-3 w-3" />
-                        {exp.metric}
-                      </span>
-                      <span>
-                        {exp.variants.length} variants
-                      </span>
-                      {exp.daysLeft && (
+                      {exp.metric && (
                         <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {exp.daysLeft} days left
+                          <Target className="h-3 w-3" />
+                          {exp.metric}
                         </span>
+                      )}
+                      {exp.variants && exp.variants.length > 0 && (
+                        <span>{exp.variants.length} variants</span>
                       )}
                     </div>
 
                     {/* Variants */}
-                    <div className="flex flex-wrap gap-2">
-                      {exp.variants.map((variant, i) => (
-                        <span 
-                          key={i}
-                          className={`text-xs px-2 py-1 rounded ${
-                            exp.winner === variant 
-                              ? 'bg-success/10 text-success border border-success/20' 
-                              : 'bg-muted text-muted-foreground'
-                          }`}
-                        >
-                          {variant}
-                          {exp.winner === variant && ' ✓'}
-                        </span>
-                      ))}
-                    </div>
-
-                    {/* Result */}
-                    {(exp.currentResult || exp.result) && (
-                      <div className="mt-3 flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-success" />
-                        <span className="text-sm font-medium text-success">
-                          {exp.currentResult || exp.result}
-                        </span>
-                        {exp.confidence && (
-                          <span className="text-xs text-muted-foreground">
-                            ({exp.confidence}% confidence)
+                    {exp.variants && exp.variants.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {exp.variants.map((variant, i) => (
+                          <span 
+                            key={i}
+                            className="text-xs px-2 py-1 rounded bg-muted text-muted-foreground"
+                          >
+                            {variant}
                           </span>
-                        )}
+                        ))}
                       </div>
                     )}
                   </div>
@@ -180,69 +274,26 @@ export default function Experiments() {
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem>View Details</DropdownMenuItem>
                       {exp.status === 'backlog' && (
-                        <DropdownMenuItem>Start Experiment</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleStartExperiment(exp.id)}>
+                          Start Experiment
+                        </DropdownMenuItem>
                       )}
                       {exp.status === 'running' && (
-                        <DropdownMenuItem>End Early</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleEndExperiment(exp.id)}>
+                          End Experiment
+                        </DropdownMenuItem>
                       )}
-                      <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(exp.id)}>
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
-
-        {/* Weekly Plan */}
-        <div className="space-y-4">
-          <Card className="bg-card/50 border-border/50">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-primary" />
-                This Week's Plan
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {weeklyPlan.map((item, index) => (
-                <div 
-                  key={index}
-                  className="flex items-center gap-3 p-3 rounded-lg bg-background/50 border border-border/50"
-                >
-                  <div className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-semibold ${
-                    item.done ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
-                  }`}>
-                    {item.done ? (
-                      <CheckCircle className="h-4 w-4" />
-                    ) : (
-                      item.day
-                    )}
-                  </div>
-                  <span className={`text-sm ${item.done ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
-                    {item.task}
-                  </span>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          {/* Learnings */}
-          <Card className="bg-card/50 border-border/50">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg font-semibold">Key Learnings</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="p-3 rounded-lg bg-success/5 border border-success/20 text-sm">
-                <p className="text-success font-medium mb-1">What works</p>
-                <p className="text-muted-foreground">Video testimonials convert 34% better than static images.</p>
-              </div>
-              <div className="p-3 rounded-lg bg-warning/5 border border-warning/20 text-sm">
-                <p className="text-warning font-medium mb-1">Watch out</p>
-                <p className="text-muted-foreground">CPL increases on weekends. Consider reducing weekend spend.</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+          ))
+        )}
       </div>
     </div>
   );
