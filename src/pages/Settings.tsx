@@ -269,7 +269,12 @@ export default function Settings() {
                     {integration.status === 'connected' ? (
                       <StatusBadge status="success" label="Connected" />
                     ) : (
-                      <Button variant="outline" size="sm" className="gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="gap-2"
+                        onClick={() => toast.info(`${integration.name} integration coming soon! This requires OAuth setup with the platform.`)}
+                      >
                         <Plug className="h-3 w-3" />
                         Connect
                       </Button>
