@@ -61,7 +61,13 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Scraping URL with Firecrawl: ${url}`);
+    // Format URL properly
+    let formattedUrl = url.trim();
+    if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
+      formattedUrl = `https://${formattedUrl}`;
+    }
+
+    console.log(`Scraping URL with Firecrawl: ${formattedUrl}`);
 
     const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
@@ -70,8 +76,9 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        url,
-        formats: ['markdown', 'html'],
+        url: formattedUrl,
+        formats: ['markdown'],
+        onlyMainContent: true,
       }),
     });
 
@@ -82,10 +89,29 @@ serve(async (req) => {
     }
 
     const data = await response.json();
+    const markdown = data.data?.markdown || '';
+    
+    // Extract pricing and offer info
+    const lines = markdown.split('\n');
+    let pricing = 'Not found';
+    let mainOffer = 'Not found';
+    
+    for (const line of lines) {
+      const lowerLine = line.toLowerCase();
+      if ((lowerLine.includes('₹') || lowerLine.includes('$') || lowerLine.includes('price') || lowerLine.includes('/month')) && pricing === 'Not found') {
+        pricing = line.trim().slice(0, 50);
+      }
+      if ((lowerLine.includes('free') || lowerLine.includes('trial') || lowerLine.includes('guarantee') || lowerLine.includes('offer')) && mainOffer === 'Not found') {
+        mainOffer = line.trim().slice(0, 100);
+      }
+    }
+
     console.log('Firecrawl scrape completed successfully');
 
     return new Response(JSON.stringify({
-      content: data.data?.markdown || data.data?.html || 'No content extracted',
+      content: markdown.slice(0, 2000),
+      pricing,
+      mainOffer,
       metadata: data.data?.metadata || {},
       source: 'firecrawl',
     }), {

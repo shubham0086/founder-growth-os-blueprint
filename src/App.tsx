@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { WorkspaceProvider } from "@/hooks/useWorkspace";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
 import Auth from "./pages/Auth";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
@@ -22,6 +23,9 @@ import Settings from "./pages/Settings";
 import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
+
+// Set your GA4 Measurement ID here (e.g., "G-XXXXXXXXXX")
+const GA_MEASUREMENT_ID = import.meta.env.VITE_GA_MEASUREMENT_ID || "";
 
 const queryClient = new QueryClient();
 
@@ -76,6 +80,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <GoogleAnalytics measurementId={GA_MEASUREMENT_ID} />
         <AuthProvider>
           <WorkspaceProvider>
             <AppRoutes />
