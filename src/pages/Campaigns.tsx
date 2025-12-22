@@ -25,6 +25,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -112,6 +113,7 @@ export default function Campaigns() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create Campaign</DialogTitle>
+              <DialogDescription>Set up a new ad campaign for Meta or Google Ads.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 pt-4">
               <div className="space-y-2">
