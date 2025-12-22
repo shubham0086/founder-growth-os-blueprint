@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { WorkspaceProvider } from "@/hooks/useWorkspace";
+import { TutorialProvider, TutorialOverlay, TutorialTrigger } from "@/components/tutorial";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
 import Auth from "./pages/Auth";
@@ -52,7 +53,11 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 // Wrapper component for pages that need the layout
 const WithLayout = ({ children }: { children: React.ReactNode }) => (
   <ProtectedRoute>
-    <AppLayout>{children}</AppLayout>
+    <AppLayout>
+      {children}
+      <TutorialTrigger />
+      <TutorialOverlay />
+    </AppLayout>
   </ProtectedRoute>
 );
 
@@ -85,7 +90,9 @@ const App = () => (
         <GoogleAnalytics measurementId={GA_MEASUREMENT_ID} />
         <AuthProvider>
           <WorkspaceProvider>
-            <AppRoutes />
+            <TutorialProvider>
+              <AppRoutes />
+            </TutorialProvider>
           </WorkspaceProvider>
         </AuthProvider>
       </BrowserRouter>

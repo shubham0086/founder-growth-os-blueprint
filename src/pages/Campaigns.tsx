@@ -90,7 +90,7 @@ export default function Campaigns() {
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between" data-tutorial="campaigns-header">
         <div>
           <h1 className="text-2xl font-bold text-foreground mb-1">
             Campaign Plans
@@ -101,7 +101,10 @@ export default function Campaigns() {
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2 gradient-primary text-primary-foreground">
+            <Button 
+              className="gap-2 gradient-primary text-primary-foreground"
+              data-tutorial="create-campaign-btn"
+            >
               <Plus className="h-4 w-4" />
               Create Campaign
             </Button>
@@ -117,6 +120,7 @@ export default function Campaigns() {
                   value={newCampaign.name}
                   onChange={(e) => setNewCampaign(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="e.g., Summer Promotion"
+                  data-tutorial="campaign-name-input"
                 />
               </div>
               <div className="space-y-2">
@@ -125,7 +129,7 @@ export default function Campaigns() {
                   value={newCampaign.platform}
                   onValueChange={(value) => setNewCampaign(prev => ({ ...prev, platform: value }))}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger data-tutorial="campaign-platform-select">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -134,7 +138,13 @@ export default function Campaigns() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={handleCreate} className="w-full">Create Campaign</Button>
+              <Button 
+                onClick={handleCreate} 
+                className="w-full"
+                data-tutorial="campaign-submit-btn"
+              >
+                Create Campaign
+              </Button>
             </div>
           </DialogContent>
         </Dialog>

@@ -77,10 +77,12 @@ export function Sidebar() {
         <nav className="flex-1 space-y-1 px-3 py-4">
           {navItems.map((item) => {
             const isActive = location.pathname === item.href;
+            const tutorialId = item.href === '/campaigns' ? 'nav-campaigns' : undefined;
             return (
               <Link
                 key={item.href}
                 to={item.href}
+                data-tutorial={tutorialId}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                   isActive
