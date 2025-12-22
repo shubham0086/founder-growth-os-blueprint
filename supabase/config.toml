@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.text-to-speech]
 verify_jwt = true
+
+[functions.firecrawl-scrape]
+verify_jwt = true
