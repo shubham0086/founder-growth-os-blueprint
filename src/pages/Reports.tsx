@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { 
   Download, 
@@ -5,19 +6,21 @@ import {
   TrendingUp,
   TrendingDown,
   Calendar,
-  FileText
+  FileText,
+  Upload,
+  Plus,
+  Loader2
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-const weeklyMetrics = [
-  { label: "Total Spend", value: "₹42,500", change: -8 },
-  { label: "Total Clicks", value: "1,247", change: 12 },
-  { label: "New Leads", value: "47", change: 23 },
-  { label: "Avg CPL", value: "₹904", change: -15 },
-  { label: "Bookings", value: "12", change: 5 },
-  { label: "Won Deals", value: "4", change: 33 },
-];
+import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
+import { ImportMetricsModal } from "@/components/data-import/ImportMetricsModal";
+import { LogMetricsModal } from "@/components/data-import/LogMetricsModal";
+import { exportToCsv } from "@/lib/exportCsv";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/safeClient";
+import { useWorkspace } from "@/hooks/useWorkspace";
+import { format, subDays, startOfWeek, endOfWeek } from "date-fns";
 
 const channelPerformance = [
   { channel: "Google Ads", spend: "₹18,200", leads: 22, cpl: "₹827", cvr: "2.8%" },
@@ -26,6 +29,63 @@ const channelPerformance = [
 ];
 
 export default function Reports() {
+  const { metrics, loading } = useDashboardMetrics();
+  const { workspace } = useWorkspace();
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [logModalOpen, setLogModalOpen] = useState(false);
+
+  const weeklyMetrics = [
+    { label: "Total Spend", value: metrics ? `₹${metrics.adSpend.toLocaleString()}` : "₹0", change: metrics?.adSpendChange || 0 },
+    { label: "Total Clicks", value: metrics?.totalClicks.toLocaleString() || "0", change: metrics?.clicksChange || 0 },
+    { label: "New Leads", value: metrics?.newLeads.toString() || "0", change: metrics?.leadsChange || 0 },
+    { label: "Avg CPL", value: metrics && metrics.newLeads > 0 ? `₹${Math.round(metrics.adSpend / metrics.newLeads)}` : "₹0", change: 0 },
+    { label: "Bookings", value: metrics?.bookings.toString() || "0", change: metrics?.bookingsChange || 0 },
+    { label: "Won Deals", value: "0", change: 0 },
+  ];
+
+  const handleExport = async () => {
+    if (!workspace?.id) {
+      toast.error("No workspace selected");
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('metrics_daily')
+        .select('*')
+        .eq('workspace_id', workspace.id)
+        .order('date', { ascending: false })
+        .limit(90);
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        toast.error("No metrics data to export");
+        return;
+      }
+
+      const exportData = data.map(row => ({
+        date: row.date,
+        spend: row.spend || 0,
+        clicks: row.clicks || 0,
+        leads: row.leads || 0,
+        bookings: row.bookings || 0,
+        cpl: row.cpl || 0,
+        revenue: row.revenue || '',
+        notes: row.notes || '',
+      }));
+
+      exportToCsv(`metrics-export-${new Date().toISOString().split('T')[0]}.csv`, exportData);
+      toast.success("Metrics exported successfully");
+    } catch (err) {
+      console.error("Export error:", err);
+      toast.error("Failed to export metrics");
+    }
+  };
+
+  const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'MMMM d');
+  const weekEnd = format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'd, yyyy');
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
@@ -38,10 +98,20 @@ export default function Reports() {
             Weekly and monthly performance insights.
           </p>
         </div>
-        <Button variant="outline" className="gap-2">
-          <Download className="h-4 w-4" />
-          Export PDF
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" className="gap-2" onClick={handleExport}>
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={() => setImportModalOpen(true)}>
+            <Upload className="h-4 w-4" />
+            Import CSV
+          </Button>
+          <Button className="gap-2 gradient-primary text-primary-foreground" onClick={() => setLogModalOpen(true)}>
+            <Plus className="h-4 w-4" />
+            Log Today
+          </Button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -67,13 +137,19 @@ export default function Reports() {
                     Weekly Growth Report
                   </h2>
                   <p className="text-muted-foreground">
-                    December 16 - December 22, 2024
+                    {weekStart} - {weekEnd}
                   </p>
                 </div>
-                <div className="flex items-center gap-2 text-success">
-                  <TrendingUp className="h-5 w-5" />
-                  <span className="font-semibold">Positive Week</span>
-                </div>
+                {loading ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                ) : (
+                  <div className="flex items-center gap-2 text-success">
+                    <TrendingUp className="h-5 w-5" />
+                    <span className="font-semibold">
+                      {metrics && metrics.leadsChange >= 0 ? 'Positive Week' : 'Needs Attention'}
+                    </span>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -87,18 +163,22 @@ export default function Reports() {
                   <CardContent className="p-5">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm text-muted-foreground">{metric.label}</span>
-                      <span className={`flex items-center gap-1 text-sm font-medium ${
-                        metric.change >= 0 ? 'text-success' : 'text-destructive'
-                      }`}>
-                        {metric.change >= 0 ? (
-                          <TrendingUp className="h-4 w-4" />
-                        ) : (
-                          <TrendingDown className="h-4 w-4" />
-                        )}
-                        {Math.abs(metric.change)}%
-                      </span>
+                      {metric.change !== 0 && (
+                        <span className={`flex items-center gap-1 text-sm font-medium ${
+                          metric.change >= 0 ? 'text-success' : 'text-destructive'
+                        }`}>
+                          {metric.change >= 0 ? (
+                            <TrendingUp className="h-4 w-4" />
+                          ) : (
+                            <TrendingDown className="h-4 w-4" />
+                          )}
+                          {Math.abs(Math.round(metric.change))}%
+                        </span>
+                      )}
                     </div>
-                    <p className="text-2xl font-bold text-foreground">{metric.value}</p>
+                    <p className="text-2xl font-bold text-foreground">
+                      {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : metric.value}
+                    </p>
                   </CardContent>
                 </Card>
               ))}
@@ -182,6 +262,16 @@ export default function Reports() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Modals */}
+      <ImportMetricsModal 
+        open={importModalOpen} 
+        onOpenChange={setImportModalOpen}
+      />
+      <LogMetricsModal 
+        open={logModalOpen} 
+        onOpenChange={setLogModalOpen}
+      />
     </div>
   );
 }
