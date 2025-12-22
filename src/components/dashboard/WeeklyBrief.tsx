@@ -1,10 +1,26 @@
 import { Button } from "@/components/ui/button";
-import { Volume2, CheckCircle, AlertTriangle, ArrowRight, Loader2 } from "lucide-react";
+import { Volume2, Square, CheckCircle, AlertTriangle, ArrowRight, Loader2 } from "lucide-react";
 import { useWeeklyBrief } from "@/hooks/useWeeklyBrief";
+import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function WeeklyBrief() {
   const { brief, loading, error } = useWeeklyBrief();
+  const { speak, stop, isPlaying, isLoading } = useTextToSpeech();
+
+  const handleListen = () => {
+    if (isPlaying) {
+      stop();
+      return;
+    }
+    if (!brief) return;
+    
+    const text = `Weekly Growth Brief. ${brief.weekRange}. 
+      What's working: ${brief.highlights.join('. ')}. 
+      Needs attention: ${brief.warnings.length > 0 ? brief.warnings.join('. ') : 'Nothing urgent.'}. 
+      Top actions: ${brief.actions.join('. ')}`;
+    speak(text);
+  };
 
   if (error) {
     return (
@@ -31,9 +47,21 @@ export function WeeklyBrief() {
               <p className="text-sm text-muted-foreground">{brief?.weekRange}</p>
             )}
           </div>
-          <Button variant="outline" size="sm" className="gap-2" disabled>
-            <Volume2 className="h-4 w-4" />
-            Listen
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-2" 
+            onClick={handleListen}
+            disabled={loading || isLoading || !brief}
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : isPlaying ? (
+              <Square className="h-4 w-4" />
+            ) : (
+              <Volume2 className="h-4 w-4" />
+            )}
+            {isPlaying ? 'Stop' : 'Listen'}
           </Button>
         </div>
 
