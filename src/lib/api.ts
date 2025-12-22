@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/safeClient';
 
 export async function aiResearch(query: string, type: string, sources?: string[]) {
   const { data, error } = await supabase.functions.invoke('ai-research', {
