@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.meta-ads-sync]
 verify_jwt = false
+
+[functions.score-leads]
+verify_jwt = false

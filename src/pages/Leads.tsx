@@ -15,7 +15,9 @@ import {
   Upload,
   Download,
   Plus,
-  Loader2
+  Loader2,
+  Sparkles,
+  TrendingUp
 } from "lucide-react";
 import {
   Table,
@@ -31,6 +33,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useLeads } from "@/hooks/useLeads";
 import { ImportLeadsModal } from "@/components/data-import/ImportLeadsModal";
 import { AddLeadModal } from "@/components/data-import/AddLeadModal";
@@ -46,8 +54,20 @@ const stageConfig = {
   lost: { status: "error" as const, label: "Lost" },
 };
 
+const getScoreColor = (score: number) => {
+  if (score >= 70) return "text-green-500";
+  if (score >= 40) return "text-yellow-500";
+  return "text-muted-foreground";
+};
+
+const getScoreLabel = (score: number) => {
+  if (score >= 70) return "Hot";
+  if (score >= 40) return "Warm";
+  return "Cold";
+};
+
 export default function Leads() {
-  const { leads, loading, refetch } = useLeads();
+  const { leads, loading, scoring, refetch, scoreLeads } = useLeads();
   const [searchQuery, setSearchQuery] = useState("");
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -77,6 +97,35 @@ export default function Leads() {
     toast.success("Leads exported successfully");
   };
 
+  const handleScoreLeads = async () => {
+    try {
+      const result = await scoreLeads();
+      if (result) {
+        if (result.updated > 0) {
+          toast.success(`Updated ${result.updated} lead scores`);
+        } else {
+          toast.info("All lead scores are up to date");
+        }
+      }
+    } catch (error) {
+      toast.error("Failed to score leads");
+    }
+  };
+
+  const handleScoreLead = async (leadId: string, leadName: string) => {
+    try {
+      const result = await scoreLeads(leadId);
+      if (result && result.details.length > 0) {
+        const detail = result.details[0];
+        toast.success(`${leadName}: ${detail.oldScore} → ${detail.newScore}`);
+      } else {
+        toast.info(`${leadName} score is up to date`);
+      }
+    } catch (error) {
+      toast.error("Failed to score lead");
+    }
+  };
+
   const getStageCounts = () => {
     const counts: Record<string, number> = {};
     Object.keys(stageConfig).forEach(stage => {
@@ -100,6 +149,28 @@ export default function Leads() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  className="gap-2" 
+                  onClick={handleScoreLeads}
+                  disabled={scoring || leads.length === 0}
+                >
+                  {scoring ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )}
+                  Score All
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Auto-score leads based on source, contact info, and attribution</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <Button variant="outline" className="gap-2" onClick={handleExport}>
             <Download className="h-4 w-4" />
             Export
@@ -235,15 +306,34 @@ export default function Leads() {
                       />
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-16 rounded-full bg-muted overflow-hidden">
-                          <div 
-                            className="h-full bg-primary rounded-full"
-                            style={{ width: `${lead.score || 0}%` }}
-                          />
-                        </div>
-                        <span className="text-sm text-muted-foreground">{lead.score || 0}</span>
-                      </div>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-2 cursor-help">
+                              <div className="h-2 w-16 rounded-full bg-muted overflow-hidden">
+                                <div 
+                                  className={`h-full rounded-full transition-all ${
+                                    (lead.score || 0) >= 70 ? 'bg-green-500' : 
+                                    (lead.score || 0) >= 40 ? 'bg-yellow-500' : 'bg-muted-foreground'
+                                  }`}
+                                  style={{ width: `${lead.score || 0}%` }}
+                                />
+                              </div>
+                              <span className={`text-sm font-medium ${getScoreColor(lead.score || 0)}`}>
+                                {lead.score || 0}
+                              </span>
+                              <span className={`text-xs ${getScoreColor(lead.score || 0)}`}>
+                                {getScoreLabel(lead.score || 0)}
+                              </span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">
+                              Score based on: source, contact info, UTM data, stage
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </TableCell>
                     <TableCell>
                       <span className="text-sm text-muted-foreground">{lead.createdAt}</span>
@@ -267,6 +357,10 @@ export default function Leads() {
                           <DropdownMenuItem>
                             <User className="h-4 w-4 mr-2" />
                             View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleScoreLead(lead.id, lead.name)}>
+                            <TrendingUp className="h-4 w-4 mr-2" />
+                            Rescore Lead
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
