@@ -1,16 +1,14 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { 
   Search, 
-  Filter, 
   User,
   Mail,
   Phone,
   Calendar,
   MoreHorizontal,
-  ArrowUpDown,
   MessageSquare,
   Upload,
   Download,
@@ -39,9 +37,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useLeads } from "@/hooks/useLeads";
+import { useLeads, Lead } from "@/hooks/useLeads";
 import { ImportLeadsModal } from "@/components/data-import/ImportLeadsModal";
 import { AddLeadModal } from "@/components/data-import/AddLeadModal";
+import { LeadDetailsModal } from "@/components/leads/LeadDetailsModal";
+import { LeadFilters, SortField, SortOrder } from "@/components/leads/LeadFilters";
 import { exportToCsv } from "@/lib/exportCsv";
 import { toast } from "sonner";
 
@@ -71,11 +71,73 @@ export default function Leads() {
   const [searchQuery, setSearchQuery] = useState("");
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  
+  // Filter & Sort state
+  const [selectedStages, setSelectedStages] = useState<string[]>([]);
+  const [selectedSources, setSelectedSources] = useState<string[]>([]);
+  const [sortField, setSortField] = useState<SortField>('createdAt');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
-  const filteredLeads = leads.filter(lead =>
-    lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (lead.email && lead.email.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  // Get unique stages and sources for filter options
+  const availableStages = Object.keys(stageConfig);
+  const availableSources = useMemo(() => {
+    const sources = new Set<string>();
+    leads.forEach(lead => {
+      if (lead.source) sources.add(lead.source);
+    });
+    return Array.from(sources).sort();
+  }, [leads]);
+
+  // Apply filters and sorting
+  const filteredAndSortedLeads = useMemo(() => {
+    let result = [...leads];
+
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(lead =>
+        lead.name.toLowerCase().includes(query) ||
+        (lead.email && lead.email.toLowerCase().includes(query))
+      );
+    }
+
+    // Stage filter
+    if (selectedStages.length > 0) {
+      result = result.filter(lead => selectedStages.includes(lead.stage));
+    }
+
+    // Source filter
+    if (selectedSources.length > 0) {
+      result = result.filter(lead => lead.source && selectedSources.includes(lead.source));
+    }
+
+    // Sorting
+    result.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortField) {
+        case 'name':
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case 'score':
+          comparison = (a.score || 0) - (b.score || 0);
+          break;
+        case 'createdAt':
+          comparison = new Date(a.rawCreatedAt).getTime() - new Date(b.rawCreatedAt).getTime();
+          break;
+        case 'stage':
+          const stageOrder = ['new', 'contacted', 'booked', 'qualified', 'won', 'lost'];
+          comparison = stageOrder.indexOf(a.stage) - stageOrder.indexOf(b.stage);
+          break;
+      }
+
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+
+    return result;
+  }, [leads, searchQuery, selectedStages, selectedSources, sortField, sortOrder]);
 
   const handleExport = () => {
     if (leads.length === 0) {
@@ -124,6 +186,44 @@ export default function Leads() {
     } catch (error) {
       toast.error("Failed to score lead");
     }
+  };
+
+  const handleViewDetails = (lead: Lead) => {
+    setSelectedLead(lead);
+    setDetailsModalOpen(true);
+  };
+
+  const handleSendMessage = (lead: Lead) => {
+    if (lead.email) {
+      window.open(`mailto:${lead.email}?subject=Following up on your inquiry`, '_blank');
+      toast.success(`Opening email client for ${lead.name}`);
+    } else if (lead.phone) {
+      window.open(`sms:${lead.phone}`, '_blank');
+      toast.success(`Opening messaging for ${lead.name}`);
+    } else {
+      toast.error("No contact information available");
+    }
+  };
+
+  const handleBookCall = (lead: Lead) => {
+    // For now, show a toast - in production this would integrate with a calendar
+    toast.success(`Booking request initiated for ${lead.name}`, {
+      description: "Calendar integration coming soon. For now, reach out directly.",
+      action: lead.email ? {
+        label: "Send Email",
+        onClick: () => window.open(`mailto:${lead.email}?subject=Schedule a Call`, '_blank')
+      } : undefined
+    });
+  };
+
+  const handleSortChange = (field: SortField, order: SortOrder) => {
+    setSortField(field);
+    setSortOrder(order);
+  };
+
+  const handleClearFilters = () => {
+    setSelectedStages([]);
+    setSelectedSources([]);
   };
 
   const getStageCounts = () => {
@@ -191,7 +291,18 @@ export default function Leads() {
         {Object.entries(stageConfig).map(([stage, config]) => (
           <div 
             key={stage}
-            className="p-4 rounded-xl bg-card/50 border border-border/50 text-center hover:border-border transition-all cursor-pointer"
+            className={`p-4 rounded-xl bg-card/50 border text-center transition-all cursor-pointer ${
+              selectedStages.includes(stage) 
+                ? 'border-primary bg-primary/5' 
+                : 'border-border/50 hover:border-border'
+            }`}
+            onClick={() => {
+              if (selectedStages.includes(stage)) {
+                setSelectedStages(selectedStages.filter(s => s !== stage));
+              } else {
+                setSelectedStages([...selectedStages, stage]);
+              }
+            }}
           >
             <p className="text-2xl font-bold text-foreground">{stageCounts[stage] || 0}</p>
             <StatusBadge status={config.status} label={config.label} className="mt-2" />
@@ -210,14 +321,18 @@ export default function Leads() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <Button variant="outline" className="gap-2">
-          <Filter className="h-4 w-4" />
-          Filter
-        </Button>
-        <Button variant="outline" className="gap-2">
-          <ArrowUpDown className="h-4 w-4" />
-          Sort
-        </Button>
+        <LeadFilters
+          stages={availableStages}
+          sources={availableSources}
+          selectedStages={selectedStages}
+          selectedSources={selectedSources}
+          sortField={sortField}
+          sortOrder={sortOrder}
+          onStageChange={setSelectedStages}
+          onSourceChange={setSelectedSources}
+          onSortChange={handleSortChange}
+          onClearFilters={handleClearFilters}
+        />
       </div>
 
       {/* Leads Table */}
@@ -242,33 +357,45 @@ export default function Leads() {
                   <p className="text-sm text-muted-foreground mt-2">Loading leads...</p>
                 </TableCell>
               </TableRow>
-            ) : filteredLeads.length === 0 ? (
+            ) : filteredAndSortedLeads.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-12">
                   <User className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-                  <p className="text-foreground font-medium mb-1">No leads yet</p>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Import leads from CSV or add them manually
+                  <p className="text-foreground font-medium mb-1">
+                    {leads.length === 0 ? "No leads yet" : "No leads match your filters"}
                   </p>
-                  <div className="flex items-center justify-center gap-2">
-                    <Button variant="outline" onClick={() => setImportModalOpen(true)}>
-                      <Upload className="h-4 w-4 mr-2" />
-                      Import CSV
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {leads.length === 0 
+                      ? "Import leads from CSV or add them manually"
+                      : "Try adjusting your search or filter criteria"
+                    }
+                  </p>
+                  {leads.length === 0 ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <Button variant="outline" onClick={() => setImportModalOpen(true)}>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Import CSV
+                      </Button>
+                      <Button onClick={() => setAddModalOpen(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Lead
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button variant="outline" onClick={handleClearFilters}>
+                      Clear Filters
                     </Button>
-                    <Button onClick={() => setAddModalOpen(true)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Lead
-                    </Button>
-                  </div>
+                  )}
                 </TableCell>
               </TableRow>
             ) : (
-              filteredLeads.map((lead) => {
+              filteredAndSortedLeads.map((lead) => {
                 const stageInfo = stageConfig[lead.stage as keyof typeof stageConfig] || stageConfig.new;
                 return (
                   <TableRow 
                     key={lead.id} 
                     className="hover:bg-muted/30 cursor-pointer"
+                    onClick={() => handleViewDetails(lead)}
                   >
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -340,25 +467,25 @@ export default function Leads() {
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                           <Button variant="ghost" size="icon" className="h-8 w-8">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleSendMessage(lead); }}>
                             <MessageSquare className="h-4 w-4 mr-2" />
                             Send Message
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleBookCall(lead); }}>
                             <Calendar className="h-4 w-4 mr-2" />
                             Book Call
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleViewDetails(lead); }}>
                             <User className="h-4 w-4 mr-2" />
                             View Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleScoreLead(lead.id, lead.name)}>
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleScoreLead(lead.id, lead.name); }}>
                             <TrendingUp className="h-4 w-4 mr-2" />
                             Rescore Lead
                           </DropdownMenuItem>
@@ -383,6 +510,14 @@ export default function Leads() {
         open={addModalOpen} 
         onOpenChange={setAddModalOpen} 
         onSuccess={refetch}
+      />
+      <LeadDetailsModal
+        lead={selectedLead}
+        open={detailsModalOpen}
+        onOpenChange={setDetailsModalOpen}
+        onRescore={handleScoreLead}
+        onSendMessage={handleSendMessage}
+        onBookCall={handleBookCall}
       />
     </div>
   );
