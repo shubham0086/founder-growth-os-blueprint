@@ -11,7 +11,8 @@ import {
   Target,
   Calendar,
   Loader2,
-  Trash2
+  Trash2,
+  Eye
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -31,11 +32,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useExperiments } from "@/hooks/useExperiments";
+import { ExperimentDetailsModal } from "@/components/experiments/ExperimentDetailsModal";
 import { toast } from "sonner";
 
 export default function Experiments() {
   const { experiments, loading, createExperiment, updateExperiment, deleteExperiment } = useExperiments();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedExperiment, setSelectedExperiment] = useState<any>(null);
   const [newExperiment, setNewExperiment] = useState({
     hypothesis: '',
     metric: '',
@@ -272,7 +276,10 @@ export default function Experiments() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>View Details</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { setSelectedExperiment(exp); setDetailsOpen(true); }}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        View Details
+                      </DropdownMenuItem>
                       {exp.status === 'backlog' && (
                         <DropdownMenuItem onClick={() => handleStartExperiment(exp.id)}>
                           Start Experiment
@@ -295,6 +302,15 @@ export default function Experiments() {
           ))
         )}
       </div>
+
+      {/* Details Modal */}
+      <ExperimentDetailsModal
+        experiment={selectedExperiment}
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+        onStart={handleStartExperiment}
+        onEnd={handleEndExperiment}
+      />
     </div>
   );
 }
