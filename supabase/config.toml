@@ -1,16 +1,16 @@
 project_id = "fzavetncuqopdbxfdnai"
 
 [functions.ai-research]
-verify_jwt = true
+verify_jwt = false
 
 [functions.ai-generate]
-verify_jwt = true
+verify_jwt = false
 
 [functions.scrape-competitor]
-verify_jwt = true
+verify_jwt = false
 
 [functions.text-to-speech]
-verify_jwt = true
+verify_jwt = false
 
 [functions.firecrawl-scrape]
-verify_jwt = true
+verify_jwt = false
