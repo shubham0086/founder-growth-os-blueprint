@@ -15,10 +15,17 @@ export interface Lead {
   rawCreatedAt: string;
 }
 
+export interface ScoreResult {
+  updated: number;
+  total: number;
+  details: Array<{ id: string; name: string; oldScore: number; newScore: number }>;
+}
+
 export function useLeads() {
   const { workspace } = useWorkspace();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
+  const [scoring, setScoring] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchLeads = useCallback(async () => {
@@ -60,9 +67,36 @@ export function useLeads() {
     }
   }, [workspace?.id]);
 
+  const scoreLeads = useCallback(async (leadId?: string): Promise<ScoreResult | null> => {
+    if (!workspace?.id) return null;
+
+    try {
+      setScoring(true);
+      
+      const { data, error: scoreError } = await supabase.functions.invoke('score-leads', {
+        body: { 
+          workspace_id: workspace.id,
+          lead_id: leadId 
+        },
+      });
+
+      if (scoreError) throw scoreError;
+
+      // Refresh leads after scoring
+      await fetchLeads();
+
+      return data as ScoreResult;
+    } catch (err) {
+      console.error('Error scoring leads:', err);
+      throw err;
+    } finally {
+      setScoring(false);
+    }
+  }, [workspace?.id, fetchLeads]);
+
   useEffect(() => {
     fetchLeads();
   }, [fetchLeads]);
 
-  return { leads, loading, error, refetch: fetchLeads };
+  return { leads, loading, scoring, error, refetch: fetchLeads, scoreLeads };
 }
