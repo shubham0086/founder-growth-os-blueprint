@@ -9,30 +9,38 @@ import {
   FileText,
   Upload,
   Plus,
-  Loader2
+  Loader2,
+  Sparkles
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
+import { useReportData } from "@/hooks/useReportData";
 import { ImportMetricsModal } from "@/components/data-import/ImportMetricsModal";
 import { LogMetricsModal } from "@/components/data-import/LogMetricsModal";
 import { exportToCsv } from "@/lib/exportCsv";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/safeClient";
 import { useWorkspace } from "@/hooks/useWorkspace";
-import { format, subDays, startOfWeek, endOfWeek } from "date-fns";
-
-const channelPerformance = [
-  { channel: "Google Ads", spend: "₹18,200", leads: 22, cpl: "₹827", cvr: "2.8%" },
-  { channel: "Meta Ads", spend: "₹20,100", leads: 20, cpl: "₹1,005", cvr: "2.1%" },
-  { channel: "Organic", spend: "₹0", leads: 5, cpl: "₹0", cvr: "4.2%" },
-];
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 
 export default function Reports() {
-  const { metrics, loading } = useDashboardMetrics();
+  const { metrics, loading: metricsLoading } = useDashboardMetrics();
+  const { 
+    channelData, 
+    monthlyChannelData,
+    loading: channelLoading, 
+    insights,
+    monthlyInsights,
+    generatingInsights,
+    generateMonthlyReport 
+  } = useReportData();
   const { workspace } = useWorkspace();
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [logModalOpen, setLogModalOpen] = useState(false);
+
+  const loading = metricsLoading || channelLoading;
 
   const weeklyMetrics = [
     { label: "Total Spend", value: metrics ? `₹${metrics.adSpend.toLocaleString()}` : "₹0", change: metrics?.adSpendChange || 0 },
@@ -85,6 +93,14 @@ export default function Reports() {
 
   const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'MMMM d');
   const weekEnd = format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'd, yyyy');
+  const monthStart = format(startOfMonth(new Date()), 'MMMM d');
+  const monthEnd = format(endOfMonth(new Date()), 'd, yyyy');
+
+  const formatCurrency = (value: number) => {
+    if (value >= 100000) return `₹${(value / 100000).toFixed(1)}L`;
+    if (value >= 1000) return `₹${(value / 1000).toFixed(1)}K`;
+    return `₹${Math.round(value).toLocaleString()}`;
+  };
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -191,34 +207,46 @@ export default function Reports() {
               <CardTitle className="text-lg font-semibold">Channel Performance</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left text-sm font-medium text-muted-foreground py-3">Channel</th>
-                      <th className="text-right text-sm font-medium text-muted-foreground py-3">Spend</th>
-                      <th className="text-right text-sm font-medium text-muted-foreground py-3">Leads</th>
-                      <th className="text-right text-sm font-medium text-muted-foreground py-3">CPL</th>
-                      <th className="text-right text-sm font-medium text-muted-foreground py-3">CVR</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {channelPerformance.map((row) => (
-                      <tr key={row.channel} className="border-b border-border/50">
-                        <td className="py-4 text-foreground font-medium">{row.channel}</td>
-                        <td className="py-4 text-right text-muted-foreground">{row.spend}</td>
-                        <td className="py-4 text-right text-muted-foreground">{row.leads}</td>
-                        <td className="py-4 text-right text-muted-foreground">{row.cpl}</td>
-                        <td className="py-4 text-right text-muted-foreground">{row.cvr}</td>
+              {channelLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map(i => (
+                    <Skeleton key={i} className="h-12 w-full" />
+                  ))}
+                </div>
+              ) : channelData.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  No channel data available yet. Connect Google or Meta Ads to see performance.
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left text-sm font-medium text-muted-foreground py-3">Channel</th>
+                        <th className="text-right text-sm font-medium text-muted-foreground py-3">Spend</th>
+                        <th className="text-right text-sm font-medium text-muted-foreground py-3">Leads</th>
+                        <th className="text-right text-sm font-medium text-muted-foreground py-3">CPL</th>
+                        <th className="text-right text-sm font-medium text-muted-foreground py-3">CVR</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {channelData.map((row) => (
+                        <tr key={row.channel} className="border-b border-border/50">
+                          <td className="py-4 text-foreground font-medium">{row.channel}</td>
+                          <td className="py-4 text-right text-muted-foreground">{formatCurrency(row.spend)}</td>
+                          <td className="py-4 text-right text-muted-foreground">{row.leads}</td>
+                          <td className="py-4 text-right text-muted-foreground">{row.cpl > 0 ? formatCurrency(row.cpl) : '₹0'}</td>
+                          <td className="py-4 text-right text-muted-foreground">{row.cvr.toFixed(1)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* Summary */}
+          {/* Insights */}
           <div className="grid grid-cols-2 gap-6">
             <Card className="bg-success/5 border-success/20">
               <CardHeader className="pb-3">
@@ -228,9 +256,14 @@ export default function Reports() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm text-muted-foreground">
-                <p>• Video testimonials drove 34% higher engagement</p>
-                <p>• "Free Assessment" CTA outperformed by 23%</p>
-                <p>• Google Search CPL decreased by 15%</p>
+                {channelLoading ? (
+                  <>
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                  </>
+                ) : insights?.whatWorked.map((insight, i) => (
+                  <p key={i}>• {insight}</p>
+                ))}
               </CardContent>
             </Card>
 
@@ -242,24 +275,119 @@ export default function Reports() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm text-muted-foreground">
-                <p>• Meta CPL increased by 12% - review targeting</p>
-                <p>• Weekend performance dipped - consider pausing</p>
-                <p>• Mobile CVR 40% lower than desktop</p>
+                {channelLoading ? (
+                  <>
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                  </>
+                ) : insights?.areasToImprove.map((insight, i) => (
+                  <p key={i}>• {insight}</p>
+                ))}
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
-        <TabsContent value="monthly" className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="font-medium text-foreground mb-2">Monthly Report</h3>
-            <p className="text-sm text-muted-foreground mb-4">Generate a comprehensive monthly report with trends and insights.</p>
-            <Button className="gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Generate Report
-            </Button>
-          </div>
+        <TabsContent value="monthly" className="space-y-6">
+          {/* Monthly Report Header */}
+          <Card className="bg-gradient-to-br from-card via-card to-violet-500/5 border-border/50">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold text-foreground mb-1">
+                    Monthly Growth Report
+                  </h2>
+                  <p className="text-muted-foreground">
+                    {monthStart} - {monthEnd}
+                  </p>
+                </div>
+                <Button 
+                  className="gap-2"
+                  onClick={generateMonthlyReport}
+                  disabled={generatingInsights}
+                >
+                  {generatingInsights ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )}
+                  {generatingInsights ? 'Generating...' : 'Generate AI Report'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Monthly Channel Summary */}
+          {monthlyChannelData.length > 0 && (
+            <Card className="bg-card/50 border-border/50">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold">Monthly Channel Summary</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left text-sm font-medium text-muted-foreground py-3">Channel</th>
+                        <th className="text-right text-sm font-medium text-muted-foreground py-3">Spend</th>
+                        <th className="text-right text-sm font-medium text-muted-foreground py-3">Leads</th>
+                        <th className="text-right text-sm font-medium text-muted-foreground py-3">CPL</th>
+                        <th className="text-right text-sm font-medium text-muted-foreground py-3">CVR</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {monthlyChannelData.map((row) => (
+                        <tr key={row.channel} className="border-b border-border/50">
+                          <td className="py-4 text-foreground font-medium">{row.channel}</td>
+                          <td className="py-4 text-right text-muted-foreground">{formatCurrency(row.spend)}</td>
+                          <td className="py-4 text-right text-muted-foreground">{row.leads}</td>
+                          <td className="py-4 text-right text-muted-foreground">{row.cpl > 0 ? formatCurrency(row.cpl) : '₹0'}</td>
+                          <td className="py-4 text-right text-muted-foreground">{row.cvr.toFixed(1)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* AI Generated Insights */}
+          {monthlyInsights ? (
+            <Card className="bg-gradient-to-br from-primary/5 to-violet-500/5 border-primary/20">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  AI-Generated Monthly Insights
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-sm text-muted-foreground whitespace-pre-wrap">
+                  {monthlyInsights}
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12">
+              <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="font-medium text-foreground mb-2">Monthly Report</h3>
+              <p className="text-sm text-muted-foreground mb-4 text-center max-w-md">
+                Generate a comprehensive monthly report with AI-powered insights and recommendations based on your performance data.
+              </p>
+              <Button 
+                className="gap-2"
+                onClick={generateMonthlyReport}
+                disabled={generatingInsights}
+              >
+                {generatingInsights ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <BarChart3 className="h-4 w-4" />
+                )}
+                Generate Report
+              </Button>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 
