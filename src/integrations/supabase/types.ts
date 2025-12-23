@@ -231,6 +231,56 @@ export type Database = {
           },
         ]
       }
+      google_ads_connections: {
+        Row: {
+          access_token: string | null
+          created_at: string
+          customer_ids: string[] | null
+          email: string | null
+          google_user_id: string
+          id: string
+          refresh_token: string | null
+          status: string | null
+          token_expires_at: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          created_at?: string
+          customer_ids?: string[] | null
+          email?: string | null
+          google_user_id: string
+          id?: string
+          refresh_token?: string | null
+          status?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          access_token?: string | null
+          created_at?: string
+          customer_ids?: string[] | null
+          email?: string | null
+          google_user_id?: string
+          id?: string
+          refresh_token?: string | null
+          status?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_ads_connections_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       landing_pages: {
         Row: {
           created_at: string
