@@ -47,10 +47,33 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
       if (error) throw error;
 
-      setWorkspaces(data || []);
-      
-      if (data && data.length > 0 && !workspace) {
-        setWorkspace(data[0]);
+      // Auto-create default workspace if none exists
+      if (!data || data.length === 0) {
+        const { data: newWorkspace, error: createError } = await supabase
+          .from('workspaces')
+          .insert({
+            user_id: user.id,
+            name: 'My Workspace',
+            industry: 'General',
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          console.error('Error creating default workspace:', createError);
+        } else if (newWorkspace) {
+          setWorkspaces([newWorkspace]);
+          setWorkspace(newWorkspace);
+          toast({
+            title: 'Welcome!',
+            description: 'Your workspace has been created.',
+          });
+        }
+      } else {
+        setWorkspaces(data);
+        if (!workspace) {
+          setWorkspace(data[0]);
+        }
       }
     } catch (error) {
       console.error('Error fetching workspaces:', error);
