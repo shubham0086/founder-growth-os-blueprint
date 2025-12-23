@@ -12,6 +12,7 @@ import {
   FlaskConical,
   BarChart3,
   TrendingUp,
+  GitBranch,
   Settings,
   BookOpen,
   Rocket,
@@ -33,6 +34,7 @@ const navItems = [
   { title: "Experiments", href: "/experiments", icon: FlaskConical },
   { title: "Reports", href: "/reports", icon: BarChart3 },
   { title: "Analytics", href: "/analytics", icon: TrendingUp },
+  { title: "Attribution", href: "/attribution", icon: GitBranch },
   { title: "Documentation", href: "/docs", icon: BookOpen },
   { title: "Settings", href: "/settings", icon: Settings },
 ];
