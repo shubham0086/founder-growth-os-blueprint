@@ -10,33 +10,51 @@ import {
   Plug, 
   Shield, 
   Loader2,
-  LogOut
+  LogOut,
+  Unplug
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSettings } from "@/hooks/useSettings";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
+import { useGoogleAdsConnection } from "@/hooks/useGoogleAdsConnection";
 import { toast } from "sonner";
 
-const integrations = [
-  { name: "Perplexity AI", description: "Research & content generation", status: "connected", icon: "🔮" },
-  { name: "Firecrawl", description: "Competitor analysis & web scraping", status: "connected", icon: "🔥" },
-  { name: "ElevenLabs", description: "Audio briefs & voice synthesis", status: "connected", icon: "🔊" },
-  { name: "Google Ads", description: "Campaign management", status: "not_connected", icon: "📊" },
-  { name: "Meta Ads", description: "Campaign management", status: "not_connected", icon: "📱" },
-  { name: "WhatsApp Business", description: "Lead messaging", status: "not_connected", icon: "💬" },
-];
+interface Integration {
+  name: string;
+  description: string;
+  status: "connected" | "not_connected";
+  icon: string;
+  key: string;
+}
 
 export default function Settings() {
   const { workspace, notifications, saving, updateWorkspace, updateNotification } = useSettings();
   const { user, signOut } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
+  const { 
+    connection: googleAdsConnection, 
+    loading: googleAdsLoading, 
+    connecting: googleAdsConnecting,
+    connectGoogleAds,
+    disconnectGoogleAds 
+  } = useGoogleAdsConnection();
   
   const [workspaceName, setWorkspaceName] = useState("");
   const [industry, setIndustry] = useState("");
   const [region, setRegion] = useState("");
   const [currency, setCurrency] = useState("");
+
+  // Build integrations list dynamically
+  const integrations: Integration[] = [
+    { name: "Perplexity AI", description: "Research & content generation", status: "connected", icon: "🔮", key: "perplexity" },
+    { name: "Firecrawl", description: "Competitor analysis & web scraping", status: "connected", icon: "🔥", key: "firecrawl" },
+    { name: "ElevenLabs", description: "Audio briefs & voice synthesis", status: "connected", icon: "🔊", key: "elevenlabs" },
+    { name: "Google Ads", description: "Campaign management", status: googleAdsConnection ? "connected" : "not_connected", icon: "📊", key: "google_ads" },
+    { name: "Meta Ads", description: "Campaign management", status: "not_connected", icon: "📱", key: "meta_ads" },
+    { name: "WhatsApp Business", description: "Lead messaging", status: "not_connected", icon: "💬", key: "whatsapp" },
+  ];
 
   useEffect(() => {
     if (workspace) {
@@ -59,6 +77,18 @@ export default function Settings() {
   const handleSignOut = async () => {
     await signOut();
     toast.success("Signed out successfully");
+  };
+
+  const handleIntegrationAction = (integration: Integration) => {
+    if (integration.key === "google_ads") {
+      if (integration.status === "connected") {
+        disconnectGoogleAds();
+      } else {
+        connectGoogleAds();
+      }
+    } else {
+      toast.info(`${integration.name} integration coming soon!`);
+    }
   };
 
   const loading = !workspace;
@@ -267,15 +297,32 @@ export default function Settings() {
                       </div>
                     </div>
                     {integration.status === 'connected' ? (
-                      <StatusBadge status="success" label="Connected" />
+                      <div className="flex items-center gap-2">
+                        <StatusBadge status="success" label="Connected" />
+                        {integration.key === 'google_ads' && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => handleIntegrationAction(integration)}
+                          >
+                            <Unplug className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
                     ) : (
                       <Button 
                         variant="outline" 
                         size="sm" 
                         className="gap-2"
-                        onClick={() => toast.info(`${integration.name} integration coming soon! This requires OAuth setup with the platform.`)}
+                        disabled={integration.key === 'google_ads' && googleAdsConnecting}
+                        onClick={() => handleIntegrationAction(integration)}
                       >
-                        <Plug className="h-3 w-3" />
+                        {integration.key === 'google_ads' && googleAdsConnecting ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Plug className="h-3 w-3" />
+                        )}
                         Connect
                       </Button>
                     )}
