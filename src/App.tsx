@@ -20,6 +20,7 @@ import Leads from "./pages/Leads";
 import Automations from "./pages/Automations";
 import Experiments from "./pages/Experiments";
 import Reports from "./pages/Reports";
+import Analytics from "./pages/Analytics";
 import Settings from "./pages/Settings";
 import Documentation from "./pages/Documentation";
 import Onboarding from "./pages/Onboarding";
@@ -74,6 +75,7 @@ const AppRoutes = () => (
     <Route path="/automations" element={<WithLayout><Automations /></WithLayout>} />
     <Route path="/experiments" element={<WithLayout><Experiments /></WithLayout>} />
     <Route path="/reports" element={<WithLayout><Reports /></WithLayout>} />
+    <Route path="/analytics" element={<WithLayout><Analytics /></WithLayout>} />
     <Route path="/settings" element={<WithLayout><Settings /></WithLayout>} />
     <Route path="/docs" element={<WithLayout><Documentation /></WithLayout>} />
     <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
