@@ -13,7 +13,8 @@ import {
   Play,
   Pause,
   Loader2,
-  Trash2
+  Trash2,
+  Edit3
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -33,9 +34,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCampaigns } from "@/hooks/useCampaigns";
+import { useCampaigns, Campaign } from "@/hooks/useCampaigns";
 import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
 import { toast } from "sonner";
+import { CampaignBuilderModal } from "@/components/campaigns/CampaignBuilderModal";
 
 const platformColors = {
   Meta: "bg-blue-500/10 text-blue-400",
@@ -46,6 +48,7 @@ export default function Campaigns() {
   const { campaigns, loading, createCampaign, updateCampaign, deleteCampaign } = useCampaigns();
   const { metrics } = useDashboardMetrics();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [newCampaign, setNewCampaign] = useState({
     name: '',
     platform: 'Meta',
@@ -266,6 +269,10 @@ export default function Campaigns() {
 
                   {/* Actions */}
                   <div className="flex items-center gap-2 shrink-0">
+                    <Button variant="outline" size="sm" className="gap-2" onClick={() => setEditingCampaign(campaign)}>
+                      <Edit3 className="h-4 w-4" />
+                      Edit
+                    </Button>
                     {campaign.status === 'active' && (
                       <Button variant="outline" size="sm" className="gap-2" onClick={() => handleToggleStatus(campaign.id, campaign.status)}>
                         <Pause className="h-4 w-4" />
@@ -291,9 +298,21 @@ export default function Campaigns() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>Edit Campaign</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setEditingCampaign(campaign)}>Edit Campaign</DropdownMenuItem>
                         <DropdownMenuItem>View Analytics</DropdownMenuItem>
-                        <DropdownMenuItem>Duplicate</DropdownMenuItem>
+                        <DropdownMenuItem onClick={async () => {
+                          try {
+                            await createCampaign({
+                              name: `${campaign.name} (Copy)`,
+                              platform: campaign.platform,
+                              structure: campaign.structure,
+                              budget_rules: campaign.budget_rules,
+                            });
+                            toast.success('Campaign duplicated');
+                          } catch (err) {
+                            toast.error('Failed to duplicate');
+                          }
+                        }}>Duplicate</DropdownMenuItem>
                         <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(campaign.id)}>
                           <Trash2 className="h-4 w-4 mr-2" />
                           Delete
@@ -307,6 +326,21 @@ export default function Campaigns() {
           ))
         )}
       </div>
+
+      {/* Campaign Builder Modal */}
+      {editingCampaign && (
+        <CampaignBuilderModal
+          open={!!editingCampaign}
+          onOpenChange={(open) => !open && setEditingCampaign(null)}
+          campaign={editingCampaign}
+          onSave={async (updates) => {
+            await updateCampaign(editingCampaign.id, {
+              structure: updates.structure as unknown as Campaign['structure'],
+              budget_rules: updates.budget_rules as unknown as Campaign['budget_rules'],
+            });
+          }}
+        />
+      )}
     </div>
   );
 }

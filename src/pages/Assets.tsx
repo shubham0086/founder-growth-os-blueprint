@@ -12,7 +12,8 @@ import {
   MoreHorizontal,
   Plus,
   Loader2,
-  Trash2
+  Trash2,
+  Eye
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -32,12 +33,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAssets } from "@/hooks/useAssets";
 import { toast } from "sonner";
+import { AssetViewerModal } from "@/components/assets/AssetViewerModal";
+
+interface Asset {
+  id: string;
+  name: string;
+  type: string;
+  content: string | null;
+  status: string;
+  tags: string[] | null;
+  created_at: string;
+}
 
 export default function Assets() {
   const { assets, loading, generating, generateAsset, updateAssetStatus, deleteAsset, getAssetsByType } = useAssets();
   const [prompt, setPrompt] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentType, setCurrentType] = useState<'ad_copy' | 'video_script' | 'creative_brief' | 'email'>('ad_copy');
+  const [viewingAsset, setViewingAsset] = useState<Asset | null>(null);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
@@ -262,7 +275,8 @@ export default function Assets() {
                           {script.content}
                         </p>
                       </div>
-                      <Button variant="outline" size="sm" onClick={() => script.content && handleCopy(script.content)}>
+                      <Button variant="outline" size="sm" onClick={() => setViewingAsset(script as Asset)}>
+                        <Eye className="h-4 w-4 mr-1" />
                         View Script
                       </Button>
                     </div>
@@ -317,7 +331,8 @@ export default function Assets() {
                           {brief.content}
                         </p>
                       </div>
-                      <Button variant="outline" size="sm" onClick={() => brief.content && handleCopy(brief.content)}>
+                      <Button variant="outline" size="sm" onClick={() => setViewingAsset(brief as Asset)}>
+                        <Eye className="h-4 w-4 mr-1" />
                         View Brief
                       </Button>
                     </div>
@@ -372,7 +387,8 @@ export default function Assets() {
                           {email.content}
                         </p>
                       </div>
-                      <Button variant="outline" size="sm" onClick={() => email.content && handleCopy(email.content)}>
+                      <Button variant="outline" size="sm" onClick={() => setViewingAsset(email as Asset)}>
+                        <Eye className="h-4 w-4 mr-1" />
                         View Email
                       </Button>
                     </div>
@@ -380,9 +396,20 @@ export default function Assets() {
                 </Card>
               ))}
             </div>
-          )}
+        )}
         </TabsContent>
       </Tabs>
+
+      {/* Asset Viewer Modal */}
+      {viewingAsset && (
+        <AssetViewerModal
+          open={!!viewingAsset}
+          onOpenChange={(open) => !open && setViewingAsset(null)}
+          asset={viewingAsset}
+          onApprove={(id) => updateAssetStatus(id, 'approved')}
+          onDelete={deleteAsset}
+        />
+      )}
     </div>
   );
 }
