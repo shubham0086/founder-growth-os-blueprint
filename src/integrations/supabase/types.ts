@@ -231,6 +231,94 @@ export type Database = {
           },
         ]
       }
+      google_ads_accounts: {
+        Row: {
+          created_at: string
+          currency_code: string | null
+          customer_id: string
+          id: string
+          is_manager: boolean | null
+          name: string
+          time_zone: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          currency_code?: string | null
+          customer_id: string
+          id?: string
+          is_manager?: boolean | null
+          name: string
+          time_zone?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          currency_code?: string | null
+          customer_id?: string
+          id?: string
+          is_manager?: boolean | null
+          name?: string
+          time_zone?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_ads_accounts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      google_ads_campaigns: {
+        Row: {
+          campaign_id: string
+          channel_type: string | null
+          created_at: string
+          customer_id: string
+          id: string
+          name: string
+          status: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          campaign_id: string
+          channel_type?: string | null
+          created_at?: string
+          customer_id: string
+          id?: string
+          name: string
+          status?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          campaign_id?: string
+          channel_type?: string | null
+          created_at?: string
+          customer_id?: string
+          id?: string
+          name?: string
+          status?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_ads_campaigns_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       google_ads_connections: {
         Row: {
           access_token: string | null
@@ -274,6 +362,65 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "google_ads_connections_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      google_ads_metrics_daily: {
+        Row: {
+          campaign_id: string
+          clicks: number | null
+          conversion_value: number | null
+          conversions: number | null
+          cost_micros: number | null
+          cpc_micros: number | null
+          created_at: string
+          ctr: number | null
+          customer_id: string
+          date: string
+          id: string
+          impressions: number | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          campaign_id: string
+          clicks?: number | null
+          conversion_value?: number | null
+          conversions?: number | null
+          cost_micros?: number | null
+          cpc_micros?: number | null
+          created_at?: string
+          ctr?: number | null
+          customer_id: string
+          date: string
+          id?: string
+          impressions?: number | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          campaign_id?: string
+          clicks?: number | null
+          conversion_value?: number | null
+          conversions?: number | null
+          cost_micros?: number | null
+          cpc_micros?: number | null
+          created_at?: string
+          ctr?: number | null
+          customer_id?: string
+          date?: string
+          id?: string
+          impressions?: number | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_ads_metrics_daily_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -329,10 +476,14 @@ export type Database = {
         Row: {
           created_at: string
           email: string | null
+          fbclid: string | null
+          gclid: string | null
           id: string
+          landing_page_id: string | null
           name: string
           notes: string | null
           phone: string | null
+          referrer: string | null
           score: number | null
           source: string | null
           stage: string
@@ -343,10 +494,14 @@ export type Database = {
         Insert: {
           created_at?: string
           email?: string | null
+          fbclid?: string | null
+          gclid?: string | null
           id?: string
+          landing_page_id?: string | null
           name: string
           notes?: string | null
           phone?: string | null
+          referrer?: string | null
           score?: number | null
           source?: string | null
           stage?: string
@@ -357,10 +512,14 @@ export type Database = {
         Update: {
           created_at?: string
           email?: string | null
+          fbclid?: string | null
+          gclid?: string | null
           id?: string
+          landing_page_id?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
+          referrer?: string | null
           score?: number | null
           source?: string | null
           stage?: string
@@ -371,6 +530,197 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "leads_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meta_ad_accounts: {
+        Row: {
+          account_id: string
+          created_at: string
+          currency: string | null
+          id: string
+          is_selected: boolean | null
+          name: string
+          timezone: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          currency?: string | null
+          id?: string
+          is_selected?: boolean | null
+          name: string
+          timezone?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          currency?: string | null
+          id?: string
+          is_selected?: boolean | null
+          name?: string
+          timezone?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_ad_accounts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meta_ads_connections: {
+        Row: {
+          access_token: string | null
+          app_scoped_user_id: string | null
+          created_at: string
+          id: string
+          status: string | null
+          token_expiry: string | null
+          updated_at: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          app_scoped_user_id?: string | null
+          created_at?: string
+          id?: string
+          status?: string | null
+          token_expiry?: string | null
+          updated_at?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          access_token?: string | null
+          app_scoped_user_id?: string | null
+          created_at?: string
+          id?: string
+          status?: string | null
+          token_expiry?: string | null
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_ads_connections_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meta_campaigns: {
+        Row: {
+          account_id: string
+          campaign_id: string
+          created_at: string
+          id: string
+          name: string
+          objective: string | null
+          status: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          account_id: string
+          campaign_id: string
+          created_at?: string
+          id?: string
+          name: string
+          objective?: string | null
+          status?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          account_id?: string
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          objective?: string | null
+          status?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_campaigns_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meta_metrics_daily: {
+        Row: {
+          account_id: string
+          actions_json: Json | null
+          campaign_id: string
+          clicks: number | null
+          conversions: number | null
+          cpc: number | null
+          created_at: string
+          ctr: number | null
+          date: string
+          id: string
+          impressions: number | null
+          spend: number | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          account_id: string
+          actions_json?: Json | null
+          campaign_id: string
+          clicks?: number | null
+          conversions?: number | null
+          cpc?: number | null
+          created_at?: string
+          ctr?: number | null
+          date: string
+          id?: string
+          impressions?: number | null
+          spend?: number | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          account_id?: string
+          actions_json?: Json | null
+          campaign_id?: string
+          clicks?: number | null
+          conversions?: number | null
+          cpc?: number | null
+          created_at?: string
+          ctr?: number | null
+          date?: string
+          id?: string
+          impressions?: number | null
+          spend?: number | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_metrics_daily_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -549,6 +899,82 @@ export type Database = {
           },
         ]
       }
+      sync_run_logs: {
+        Row: {
+          created_at: string
+          id: string
+          level: string
+          message: string
+          run_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          level?: string
+          message: string
+          run_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          level?: string
+          message?: string
+          run_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_run_logs_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "sync_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sync_runs: {
+        Row: {
+          created_at: string
+          error: string | null
+          finished_at: string | null
+          id: string
+          provider: string
+          rows_upserted: number | null
+          started_at: string
+          status: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          provider: string
+          rows_upserted?: number | null
+          started_at?: string
+          status?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          provider?: string
+          rows_upserted?: number | null
+          started_at?: string
+          status?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_runs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workspaces: {
         Row: {
           created_at: string
@@ -587,7 +1013,20 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      ads_metrics_daily: {
+        Row: {
+          account_id: string | null
+          campaign_id: string | null
+          clicks: number | null
+          conversions: number | null
+          date: string | null
+          impressions: number | null
+          network: string | null
+          spend: number | null
+          workspace_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       user_owns_workspace: {
