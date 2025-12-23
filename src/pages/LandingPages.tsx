@@ -29,8 +29,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useLandingPages } from "@/hooks/useLandingPages";
+import { useLandingPages, LandingPage } from "@/hooks/useLandingPages";
 import { toast } from "sonner";
+import { PageBuilderModal } from "@/components/landing-pages/PageBuilderModal";
+import { Json } from "@/integrations/supabase/types";
 
 const templates = [
   { id: "local", name: "Local Service", description: "Perfect for gyms, clinics, coaching" },
@@ -39,9 +41,10 @@ const templates = [
 ];
 
 export default function LandingPages() {
-  const { pages, loading, createPage, deletePage } = useLandingPages();
+  const { pages, loading, createPage, updatePage, deletePage } = useLandingPages();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newPage, setNewPage] = useState({ title: '', slug: '' });
+  const [editingPage, setEditingPage] = useState<LandingPage | null>(null);
 
   const handleCreate = async () => {
     try {
@@ -63,6 +66,24 @@ export default function LandingPages() {
       toast.success('Page deleted');
     } catch (err) {
       toast.error('Failed to delete page');
+    }
+  };
+
+  const handleSaveSections = async (sections: any[]) => {
+    if (!editingPage) return;
+    await updatePage(editingPage.id, { sections: sections as unknown as Json });
+  };
+
+  const handleDuplicate = async (page: LandingPage) => {
+    try {
+      await createPage({
+        title: `${page.title} (Copy)`,
+        slug: `${page.slug}-copy-${Date.now()}`,
+        sections: page.sections,
+      });
+      toast.success('Page duplicated');
+    } catch (err) {
+      toast.error('Failed to duplicate page');
     }
   };
 
@@ -194,7 +215,7 @@ export default function LandingPages() {
 
                     {/* Actions */}
                     <div className="flex items-center gap-2 shrink-0">
-                      <Button variant="outline" size="sm" className="gap-2">
+                      <Button variant="outline" size="sm" className="gap-2" onClick={() => setEditingPage(page)}>
                         <Edit3 className="h-4 w-4" />
                         Edit
                       </Button>
@@ -213,7 +234,7 @@ export default function LandingPages() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDuplicate(page)}>
                             <Copy className="h-4 w-4 mr-2" />
                             Duplicate
                           </DropdownMenuItem>
@@ -231,6 +252,21 @@ export default function LandingPages() {
           </div>
         )}
       </div>
+
+      {/* Page Builder Modal */}
+      {editingPage && (
+        <PageBuilderModal
+          open={!!editingPage}
+          onOpenChange={(open) => !open && setEditingPage(null)}
+          page={{
+            id: editingPage.id,
+            title: editingPage.title,
+            slug: editingPage.slug,
+            sections: editingPage.sections as any,
+          }}
+          onSave={handleSaveSections}
+        />
+      )}
     </div>
   );
 }

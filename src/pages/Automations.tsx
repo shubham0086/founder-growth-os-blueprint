@@ -31,10 +31,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAutomations } from "@/hooks/useAutomations";
 import { toast } from "sonner";
+import { AutomationEditorModal } from "@/components/automations/AutomationEditorModal";
 
 export default function Automations() {
   const { automations, loading, createAutomation, updateAutomation, deleteAutomation } = useAutomations();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingAutomation, setEditingAutomation] = useState<any>(null);
   const [newAutomation, setNewAutomation] = useState({
     name: '',
     trigger_event: 'new_lead',
@@ -261,7 +263,7 @@ export default function Automations() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>Edit Sequence</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setEditingAutomation(sequence)}>Edit Sequence</DropdownMenuItem>
                       <DropdownMenuItem>View Analytics</DropdownMenuItem>
                       <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(sequence.id)}>
                         Delete
@@ -274,6 +276,18 @@ export default function Automations() {
           ))
         )}
       </div>
+
+      {/* Automation Editor Modal */}
+      {editingAutomation && (
+        <AutomationEditorModal
+          open={!!editingAutomation}
+          onOpenChange={(open) => !open && setEditingAutomation(null)}
+          automation={editingAutomation}
+          onSave={async (updates) => {
+            await updateAutomation(editingAutomation.id, updates);
+          }}
+        />
+      )}
     </div>
   );
 }
