@@ -111,39 +111,36 @@ export function IntegrationsTab() {
       <div>
         <h3 className="text-lg font-semibold mb-4">Coming Soon</h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Card className="bg-card/50 border-border/50 opacity-60">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center text-xl">
-                    💬
+          {[
+            { icon: "💬", name: "WhatsApp Business", description: "Lead messaging & automation" },
+            { icon: "📧", name: "Email Marketing", description: "Automated email campaigns" },
+          ].map((item) => (
+            <Card key={item.name} className="bg-card/50 border-border/50 opacity-80 hover:opacity-100 transition-opacity">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center text-xl">
+                      {item.icon}
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-foreground">{item.name}</h3>
+                      <p className="text-sm text-muted-foreground">{item.description}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-medium text-foreground">WhatsApp Business</h3>
-                    <p className="text-sm text-muted-foreground">Lead messaging & automation</p>
-                  </div>
+                  <button 
+                    onClick={() => {
+                      const subject = encodeURIComponent(`Integration Request: ${item.name}`);
+                      const body = encodeURIComponent(`Hi, I'd like to request early access to the ${item.name} integration.`);
+                      window.open(`mailto:support@foundergrowth.io?subject=${subject}&body=${body}`);
+                    }}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Request Access
+                  </button>
                 </div>
-                <StatusBadge status="neutral" label="Coming Soon" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card/50 border-border/50 opacity-60">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center text-xl">
-                    📧
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-foreground">Email Marketing</h3>
-                    <p className="text-sm text-muted-foreground">Automated email campaigns</p>
-                  </div>
-                </div>
-                <StatusBadge status="neutral" label="Coming Soon" />
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
     </div>
