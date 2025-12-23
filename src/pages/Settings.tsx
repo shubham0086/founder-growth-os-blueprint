@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -10,6 +11,9 @@ import {
   Shield, 
   Loader2,
   LogOut,
+  Sun,
+  Moon,
+  Monitor,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -24,6 +28,7 @@ export default function Settings() {
   const { workspace, notifications, saving, updateWorkspace, updateNotification } = useSettings();
   const { user, signOut } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
+  const { theme, setTheme } = useTheme();
   
   const [workspaceName, setWorkspaceName] = useState("");
   const [industry, setIndustry] = useState("");
@@ -165,6 +170,50 @@ export default function Settings() {
                   </Button>
                 </>
               )}
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card/50 border-border/50">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold">Appearance</CardTitle>
+              <CardDescription>Customize how the app looks.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between py-2">
+                <div>
+                  <p className="font-medium text-foreground">Theme</p>
+                  <p className="text-sm text-muted-foreground">Choose your preferred color mode</p>
+                </div>
+                <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+                  <Button
+                    variant={theme === "light" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="gap-2 h-8 px-3"
+                    onClick={() => setTheme("light")}
+                  >
+                    <Sun className="h-4 w-4" />
+                    Light
+                  </Button>
+                  <Button
+                    variant={theme === "dark" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="gap-2 h-8 px-3"
+                    onClick={() => setTheme("dark")}
+                  >
+                    <Moon className="h-4 w-4" />
+                    Dark
+                  </Button>
+                  <Button
+                    variant={theme === "system" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="gap-2 h-8 px-3"
+                    onClick={() => setTheme("system")}
+                  >
+                    <Monitor className="h-4 w-4" />
+                    System
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
