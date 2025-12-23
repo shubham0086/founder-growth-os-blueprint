@@ -2,6 +2,7 @@ import { useState, useEffect, createContext, useContext, ReactNode } from 'react
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
+import { seedWorkspaceData } from '@/lib/seedWorkspaceData';
 
 export interface Workspace {
   id: string;
@@ -64,9 +65,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         } else if (newWorkspace) {
           setWorkspaces([newWorkspace]);
           setWorkspace(newWorkspace);
+          // Seed sample data for the new workspace
+          await seedWorkspaceData(newWorkspace.id);
           toast({
             title: 'Welcome!',
-            description: 'Your workspace has been created.',
+            description: 'Your workspace has been created with sample data.',
           });
         }
       } else {
