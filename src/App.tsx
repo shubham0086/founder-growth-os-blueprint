@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,7 +9,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { WorkspaceProvider } from "@/hooks/useWorkspace";
 import { TutorialProvider, TutorialOverlay, TutorialTrigger } from "@/components/tutorial";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
+import { initAnalytics } from "@/lib/analytics";
 import Auth from "./pages/Auth";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
@@ -30,11 +31,9 @@ import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Refund from "./pages/Refund";
 import Admin from "./pages/Admin";
+import Apply from "./pages/Apply";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
-
-// Set your GA4 Measurement ID here (e.g., "G-XXXXXXXXXX")
-const GA_MEASUREMENT_ID = import.meta.env.VITE_GA_MEASUREMENT_ID || "";
 
 const queryClient = new QueryClient();
 
@@ -68,31 +67,39 @@ const WithLayout = ({ children }: { children: React.ReactNode }) => (
   </ProtectedRoute>
 );
 
-const AppRoutes = () => (
-  <Routes>
-    <Route path="/auth" element={<Auth />} />
-    <Route path="/" element={<WithLayout><Dashboard /></WithLayout>} />
-    <Route path="/research" element={<WithLayout><Research /></WithLayout>} />
-    <Route path="/offer" element={<WithLayout><OfferBlueprint /></WithLayout>} />
-    <Route path="/landing-pages" element={<WithLayout><LandingPages /></WithLayout>} />
-    <Route path="/assets" element={<WithLayout><Assets /></WithLayout>} />
-    <Route path="/campaigns" element={<WithLayout><Campaigns /></WithLayout>} />
-    <Route path="/leads" element={<WithLayout><Leads /></WithLayout>} />
-    <Route path="/automations" element={<WithLayout><Automations /></WithLayout>} />
-    <Route path="/experiments" element={<WithLayout><Experiments /></WithLayout>} />
-    <Route path="/reports" element={<WithLayout><Reports /></WithLayout>} />
-    <Route path="/analytics" element={<WithLayout><Analytics /></WithLayout>} />
-    <Route path="/attribution" element={<WithLayout><Attribution /></WithLayout>} />
-    <Route path="/settings" element={<WithLayout><Settings /></WithLayout>} />
-    <Route path="/docs" element={<WithLayout><Documentation /></WithLayout>} />
-    <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
-    <Route path="/privacy" element={<Privacy />} />
-    <Route path="/terms" element={<Terms />} />
-    <Route path="/refund" element={<Refund />} />
-    <Route path="/admin" element={<Admin />} />
-    <Route path="*" element={<NotFound />} />
-  </Routes>
-);
+const AppRoutes = () => {
+  // Initialize analytics on mount
+  useEffect(() => {
+    initAnalytics();
+  }, []);
+
+  return (
+    <Routes>
+      <Route path="/auth" element={<Auth />} />
+      <Route path="/" element={<WithLayout><Dashboard /></WithLayout>} />
+      <Route path="/research" element={<WithLayout><Research /></WithLayout>} />
+      <Route path="/offer" element={<WithLayout><OfferBlueprint /></WithLayout>} />
+      <Route path="/landing-pages" element={<WithLayout><LandingPages /></WithLayout>} />
+      <Route path="/assets" element={<WithLayout><Assets /></WithLayout>} />
+      <Route path="/campaigns" element={<WithLayout><Campaigns /></WithLayout>} />
+      <Route path="/leads" element={<WithLayout><Leads /></WithLayout>} />
+      <Route path="/automations" element={<WithLayout><Automations /></WithLayout>} />
+      <Route path="/experiments" element={<WithLayout><Experiments /></WithLayout>} />
+      <Route path="/reports" element={<WithLayout><Reports /></WithLayout>} />
+      <Route path="/analytics" element={<WithLayout><Analytics /></WithLayout>} />
+      <Route path="/attribution" element={<WithLayout><Attribution /></WithLayout>} />
+      <Route path="/settings" element={<WithLayout><Settings /></WithLayout>} />
+      <Route path="/docs" element={<WithLayout><Documentation /></WithLayout>} />
+      <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+      <Route path="/apply" element={<Apply />} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/terms" element={<Terms />} />
+      <Route path="/refund" element={<Refund />} />
+      <Route path="/admin" element={<Admin />} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -101,7 +108,6 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <GoogleAnalytics measurementId={GA_MEASUREMENT_ID} />
           <AuthProvider>
             <WorkspaceProvider>
               <TutorialProvider>

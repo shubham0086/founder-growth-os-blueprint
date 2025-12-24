@@ -2,11 +2,12 @@ import { siteConfig } from '@/lib/siteConfig';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { Footer } from '@/components/layout/Footer';
 
 export default function Privacy() {
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container max-w-4xl py-12 px-4">
+    <div className="min-h-screen bg-background flex flex-col">
+      <div className="container max-w-4xl py-12 px-4 flex-1">
         <div className="mb-8">
           <Link to="/">
             <Button variant="ghost" size="sm" className="gap-2">
@@ -104,6 +105,7 @@ export default function Privacy() {
           </div>
         </article>
       </div>
+      <Footer />
     </div>
   );
 }
