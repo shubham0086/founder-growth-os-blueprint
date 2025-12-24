@@ -125,11 +125,12 @@ export function useGoogleAdsConnection() {
           .maybeSingle();
 
         if (!existing) {
-          // Create new connection record
+          // Create new connection record with user_id for RLS
           const { error: insertError } = await supabase
             .from('google_ads_connections')
             .insert({
               workspace_id: workspace.id,
+              user_id: session.user.id,
               google_user_id: session.user.user_metadata?.sub || session.user.id,
               email: session.user.email,
               access_token: session.provider_token,

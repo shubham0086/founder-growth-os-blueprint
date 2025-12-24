@@ -331,6 +331,7 @@ export type Database = {
           status: string | null
           token_expires_at: string | null
           updated_at: string
+          user_id: string
           workspace_id: string
         }
         Insert: {
@@ -344,6 +345,7 @@ export type Database = {
           status?: string | null
           token_expires_at?: string | null
           updated_at?: string
+          user_id: string
           workspace_id: string
         }
         Update: {
@@ -357,6 +359,7 @@ export type Database = {
           status?: string | null
           token_expires_at?: string | null
           updated_at?: string
+          user_id?: string
           workspace_id?: string
         }
         Relationships: [
