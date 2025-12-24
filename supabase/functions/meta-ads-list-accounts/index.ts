@@ -12,15 +12,63 @@ serve(async (req) => {
   }
 
   try {
+    // Verify authentication
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    // Authenticate with user's token
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { authorization: authHeader } }
+    });
+
+    const { data: { user }, error: authError } = await userClient.auth.getUser();
+    if (authError || !user) {
+      console.error('Auth error:', authError?.message);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { workspace_id } = await req.json();
 
     if (!workspace_id) {
       throw new Error('workspace_id is required');
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // Validate workspace_id format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(workspace_id)) {
+      throw new Error('Invalid workspace_id format');
+    }
+
+    // Verify user owns the workspace
+    const { data: workspace, error: workspaceError } = await userClient
+      .from('workspaces')
+      .select('id')
+      .eq('id', workspace_id)
+      .eq('user_id', user.id)
+      .single();
+
+    if (workspaceError || !workspace) {
+      console.error('Workspace ownership error:', workspaceError?.message);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: You do not own this workspace' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Use service role for accessing connection data
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get connection
     const { data: connection, error: connError } = await supabase
@@ -35,9 +83,14 @@ serve(async (req) => {
 
     const accessToken = connection.access_token;
 
-    // List ad accounts the user has access to
+    // List ad accounts the user has access to - pass token via header
     const accountsResponse = await fetch(
-      `https://graph.facebook.com/v18.0/me/adaccounts?fields=id,name,account_id,currency,timezone_name,account_status&access_token=${accessToken}`
+      `https://graph.facebook.com/v18.0/me/adaccounts?fields=id,name,account_id,currency,timezone_name,account_status`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      }
     );
 
     const accountsData = await accountsResponse.json();
@@ -55,7 +108,7 @@ serve(async (req) => {
       status: acc.account_status,
     }));
 
-    console.log(`Found ${accounts.length} Meta ad accounts for workspace:`, workspace_id);
+    console.log(`Found ${accounts.length} Meta ad accounts for workspace: ${workspace_id}, user: ${user.id}`);
 
     return new Response(
       JSON.stringify({ accounts }),
