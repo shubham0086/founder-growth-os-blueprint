@@ -45,8 +45,37 @@ serve(async (req) => {
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+  // ============ AUTHENTICATION CHECK ============
+  const authHeader = req.headers.get('authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.log('No authorization header provided');
+    return new Response(
+      JSON.stringify({ error: 'Authentication required' }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  // Create user client to verify authentication
+  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { authorization: authHeader } }
+  });
+
+  const { data: { user }, error: authError } = await userClient.auth.getUser();
+  if (authError || !user) {
+    console.log('Authentication failed:', authError?.message);
+    return new Response(
+      JSON.stringify({ error: 'Unauthorized' }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  console.log(`Authenticated user: ${user.id}`);
+
+  // Create service client for database operations
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   let runId: string | null = null;
 
@@ -62,6 +91,24 @@ serve(async (req) => {
     if (!uuidRegex.test(workspace_id)) {
       throw new Error('Invalid workspace_id format');
     }
+
+    // ============ WORKSPACE OWNERSHIP CHECK ============
+    const { data: workspace, error: workspaceError } = await userClient
+      .from('workspaces')
+      .select('id')
+      .eq('id', workspace_id)
+      .eq('user_id', user.id)
+      .single();
+
+    if (workspaceError || !workspace) {
+      console.log('Workspace ownership check failed:', workspaceError?.message);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: workspace not found or access denied' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Workspace ownership verified for workspace: ${workspace_id}`);
 
     // Validate days_back is a reasonable number
     const daysBackNum = Number(days_back);
