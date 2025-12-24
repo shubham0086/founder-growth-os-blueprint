@@ -2,30 +2,6 @@ import { useState, useEffect, createContext, useContext, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/safeClient';
 
-const isDev = import.meta.env.DEV;
-
-// Mock user for development bypass - uses valid UUID format
-const mockUser: User = {
-  id: '00000000-0000-0000-0000-000000000001',
-  aud: 'authenticated',
-  role: 'authenticated',
-  email: 'dev@example.com',
-  email_confirmed_at: new Date().toISOString(),
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
-  app_metadata: {},
-  user_metadata: { full_name: 'Dev User' },
-} as User;
-
-const mockSession: Session = {
-  access_token: 'dev-token',
-  refresh_token: 'dev-refresh',
-  expires_in: 3600,
-  expires_at: Math.floor(Date.now() / 1000) + 3600,
-  token_type: 'bearer',
-  user: mockUser,
-} as Session;
-
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -36,14 +12,11 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(isDev ? mockUser : null);
-  const [session, setSession] = useState<Session | null>(isDev ? mockSession : null);
-  const [isLoading, setIsLoading] = useState(!isDev);
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Skip auth setup in development
-    if (isDev) return;
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);

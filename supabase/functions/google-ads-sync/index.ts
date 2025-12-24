@@ -32,6 +32,13 @@ function formatDate(date: Date): string {
   return date.toISOString().split('T')[0];
 }
 
+// Validate Google Ads customer ID format (10-digit numeric string, sometimes with dashes)
+function isValidCustomerId(customerId: string): boolean {
+  // Remove dashes and validate
+  const cleaned = customerId.replace(/-/g, '');
+  return /^\d{10}$/.test(cleaned);
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -48,6 +55,18 @@ serve(async (req) => {
 
     if (!workspace_id) {
       throw new Error('workspace_id is required');
+    }
+
+    // Validate workspace_id is a valid UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(workspace_id)) {
+      throw new Error('Invalid workspace_id format');
+    }
+
+    // Validate days_back is a reasonable number
+    const daysBackNum = Number(days_back);
+    if (isNaN(daysBackNum) || daysBackNum < 1 || daysBackNum > 365) {
+      throw new Error('days_back must be a number between 1 and 365');
     }
 
     const developerToken = Deno.env.get('GOOGLE_ADS_DEVELOPER_TOKEN');
@@ -71,6 +90,7 @@ serve(async (req) => {
     runId = run.id;
 
     const log = async (level: string, message: string) => {
+      // Never log sensitive data like tokens
       console.log(`[${level}] ${message}`);
       await supabase.from('sync_run_logs').insert({
         run_id: runId,
@@ -115,10 +135,17 @@ serve(async (req) => {
 
     // Refresh token if needed
     let accessToken = connection.access_token;
+    if (!accessToken) {
+      throw new Error('No access token available');
+    }
+    
     const tokenExpiry = new Date(connection.token_expires_at);
     
     if (tokenExpiry <= new Date()) {
       await log('info', 'Refreshing expired token');
+      if (!connection.refresh_token) {
+        throw new Error('No refresh token available');
+      }
       const newTokens = await refreshAccessToken(connection.refresh_token);
       accessToken = newTokens.access_token;
       
@@ -134,17 +161,35 @@ serve(async (req) => {
     // Calculate date range
     const endDate = new Date();
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days_back);
+    startDate.setDate(startDate.getDate() - daysBackNum);
 
     await log('info', `Fetching metrics from ${formatDate(startDate)} to ${formatDate(endDate)}`);
 
     let totalRowsUpserted = 0;
 
     for (const account of accounts) {
-      await log('info', `Syncing account ${account.customer_id}: ${account.name}`);
+      // Validate customer_id format
+      if (!isValidCustomerId(account.customer_id)) {
+        await log('error', `Invalid customer_id format for account: ${account.name}`);
+        continue;
+      }
+
+      // Sanitize customer_id (remove dashes)
+      const sanitizedCustomerId = account.customer_id.replace(/-/g, '');
+
+      await log('info', `Syncing account ${sanitizedCustomerId}: ${account.name}`);
 
       try {
-        // Use Google Ads Query Language
+        // Use Google Ads Query Language with parameterized dates
+        const startDateStr = formatDate(startDate);
+        const endDateStr = formatDate(endDate);
+        
+        // Validate date format
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(startDateStr) || !dateRegex.test(endDateStr)) {
+          throw new Error('Invalid date format');
+        }
+
         const query = `
           SELECT
             campaign.id,
@@ -160,11 +205,11 @@ serve(async (req) => {
             metrics.ctr,
             metrics.average_cpc
           FROM campaign
-          WHERE segments.date BETWEEN '${formatDate(startDate)}' AND '${formatDate(endDate)}'
+          WHERE segments.date BETWEEN '${startDateStr}' AND '${endDateStr}'
         `;
 
         const searchResponse = await fetch(
-          `https://googleads.googleapis.com/v15/customers/${account.customer_id}/googleAds:searchStream`,
+          `https://googleads.googleapis.com/v15/customers/${encodeURIComponent(sanitizedCustomerId)}/googleAds:searchStream`,
           {
             method: 'POST',
             headers: {
@@ -179,7 +224,7 @@ serve(async (req) => {
         const searchData = await searchResponse.json();
 
         if (searchData.error) {
-          await log('error', `API error for ${account.customer_id}: ${searchData.error.message}`);
+          await log('error', `API error for ${sanitizedCustomerId}: ${searchData.error.message}`);
           continue;
         }
 
@@ -199,7 +244,7 @@ serve(async (req) => {
               // Track campaign
               campaignsToUpsert.push({
                 workspace_id,
-                customer_id: account.customer_id,
+                customer_id: sanitizedCustomerId,
                 campaign_id: campaign.id.toString(),
                 name: campaign.name,
                 status: campaign.status,
@@ -209,7 +254,7 @@ serve(async (req) => {
               // Track daily metrics
               metricsToUpsert.push({
                 workspace_id,
-                customer_id: account.customer_id,
+                customer_id: sanitizedCustomerId,
                 campaign_id: campaign.id.toString(),
                 date,
                 impressions: metrics.impressions || 0,
@@ -253,12 +298,12 @@ serve(async (req) => {
             await log('error', `Failed to upsert metrics: ${metricsError.message}`);
           } else {
             totalRowsUpserted += metricsToUpsert.length;
-            await log('info', `Upserted ${metricsToUpsert.length} metric rows for ${account.customer_id}`);
+            await log('info', `Upserted ${metricsToUpsert.length} metric rows for ${sanitizedCustomerId}`);
           }
         }
       } catch (e: unknown) {
         const errMsg = e instanceof Error ? e.message : 'Unknown error';
-        await log('error', `Error syncing account ${account.customer_id}: ${errMsg}`);
+        await log('error', `Error syncing account ${sanitizedCustomerId}: ${errMsg}`);
       }
     }
 
