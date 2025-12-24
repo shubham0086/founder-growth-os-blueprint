@@ -10,6 +10,16 @@ function formatDate(date: Date): string {
   return date.toISOString().split('T')[0];
 }
 
+// Validate Meta account ID format (numeric string)
+function isValidAccountId(accountId: string): boolean {
+  return /^\d{1,20}$/.test(accountId);
+}
+
+// Validate Meta campaign ID format (numeric string)
+function isValidCampaignId(campaignId: string): boolean {
+  return /^\d{1,20}$/.test(campaignId);
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -28,6 +38,18 @@ serve(async (req) => {
       throw new Error('workspace_id is required');
     }
 
+    // Validate workspace_id is a valid UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(workspace_id)) {
+      throw new Error('Invalid workspace_id format');
+    }
+
+    // Validate days_back is a reasonable number
+    const daysBackNum = Number(days_back);
+    if (isNaN(daysBackNum) || daysBackNum < 1 || daysBackNum > 365) {
+      throw new Error('days_back must be a number between 1 and 365');
+    }
+
     // Create sync run record
     const { data: run, error: runError } = await supabase
       .from('sync_runs')
@@ -44,6 +66,7 @@ serve(async (req) => {
     runId = run.id;
 
     const log = async (level: string, message: string) => {
+      // Never log sensitive data like tokens
       console.log(`[${level}] ${message}`);
       await supabase.from('sync_run_logs').insert({
         run_id: runId,
@@ -66,6 +89,9 @@ serve(async (req) => {
     }
 
     const accessToken = connection.access_token;
+    if (!accessToken) {
+      throw new Error('No access token available');
+    }
 
     // Get selected accounts
     const { data: accounts, error: accError } = await supabase
@@ -92,19 +118,31 @@ serve(async (req) => {
     // Calculate date range
     const endDate = new Date();
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days_back);
+    startDate.setDate(startDate.getDate() - daysBackNum);
 
     await log('info', `Fetching metrics from ${formatDate(startDate)} to ${formatDate(endDate)}`);
 
     let totalRowsUpserted = 0;
 
     for (const account of accounts) {
+      // Validate account_id format
+      if (!isValidAccountId(account.account_id)) {
+        await log('error', `Invalid account_id format for account: ${account.name}`);
+        continue;
+      }
+
       await log('info', `Syncing account ${account.account_id}: ${account.name}`);
 
       try {
-        // Fetch campaigns first
-        const campaignsUrl = `https://graph.facebook.com/v18.0/act_${account.account_id}/campaigns?fields=id,name,objective,status&access_token=${accessToken}`;
-        const campaignsResponse = await fetch(campaignsUrl);
+        // Fetch campaigns using Authorization header instead of URL parameter
+        const campaignsUrl = new URL(`https://graph.facebook.com/v18.0/act_${encodeURIComponent(account.account_id)}/campaigns`);
+        campaignsUrl.searchParams.set('fields', 'id,name,objective,status');
+        
+        const campaignsResponse = await fetch(campaignsUrl.toString(), {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        });
         const campaignsData = await campaignsResponse.json();
 
         if (campaignsData.error) {
@@ -138,9 +176,25 @@ serve(async (req) => {
 
         // Fetch insights for each campaign
         for (const campaign of campaigns) {
-          const insightsUrl = `https://graph.facebook.com/v18.0/${campaign.id}/insights?fields=impressions,clicks,spend,actions,ctr,cpc&time_range={"since":"${formatDate(startDate)}","until":"${formatDate(endDate)}"}&time_increment=1&access_token=${accessToken}`;
+          // Validate campaign ID
+          if (!isValidCampaignId(campaign.id)) {
+            await log('warn', `Invalid campaign_id format: skipping`);
+            continue;
+          }
+
+          const insightsUrl = new URL(`https://graph.facebook.com/v18.0/${encodeURIComponent(campaign.id)}/insights`);
+          insightsUrl.searchParams.set('fields', 'impressions,clicks,spend,actions,ctr,cpc');
+          insightsUrl.searchParams.set('time_range', JSON.stringify({
+            since: formatDate(startDate),
+            until: formatDate(endDate),
+          }));
+          insightsUrl.searchParams.set('time_increment', '1');
           
-          const insightsResponse = await fetch(insightsUrl);
+          const insightsResponse = await fetch(insightsUrl.toString(), {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+            },
+          });
           const insightsData = await insightsResponse.json();
 
           if (insightsData.error) {
