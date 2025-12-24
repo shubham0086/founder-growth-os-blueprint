@@ -26,6 +26,10 @@ import Attribution from "./pages/Attribution";
 import Settings from "./pages/Settings";
 import Documentation from "./pages/Documentation";
 import Onboarding from "./pages/Onboarding";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
+import Refund from "./pages/Refund";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
@@ -82,6 +86,10 @@ const AppRoutes = () => (
     <Route path="/settings" element={<WithLayout><Settings /></WithLayout>} />
     <Route path="/docs" element={<WithLayout><Documentation /></WithLayout>} />
     <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+    <Route path="/privacy" element={<Privacy />} />
+    <Route path="/terms" element={<Terms />} />
+    <Route path="/refund" element={<Refund />} />
+    <Route path="/admin" element={<Admin />} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );

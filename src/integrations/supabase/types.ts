@@ -474,57 +474,81 @@ export type Database = {
       }
       leads: {
         Row: {
+          business_type: string | null
           created_at: string
           email: string | null
           fbclid: string | null
           gclid: string | null
+          goal: string | null
           id: string
           landing_page_id: string | null
           name: string
           notes: string | null
           phone: string | null
           referrer: string | null
+          revenue_range: string | null
           score: number | null
           source: string | null
           stage: string
           updated_at: string
           utm: Json | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
           workspace_id: string
         }
         Insert: {
+          business_type?: string | null
           created_at?: string
           email?: string | null
           fbclid?: string | null
           gclid?: string | null
+          goal?: string | null
           id?: string
           landing_page_id?: string | null
           name: string
           notes?: string | null
           phone?: string | null
           referrer?: string | null
+          revenue_range?: string | null
           score?: number | null
           source?: string | null
           stage?: string
           updated_at?: string
           utm?: Json | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
           workspace_id: string
         }
         Update: {
+          business_type?: string | null
           created_at?: string
           email?: string | null
           fbclid?: string | null
           gclid?: string | null
+          goal?: string | null
           id?: string
           landing_page_id?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
           referrer?: string | null
+          revenue_range?: string | null
           score?: number | null
           source?: string | null
           stage?: string
           updated_at?: string
           utm?: Json | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
           workspace_id?: string
         }
         Relationships: [
@@ -864,6 +888,69 @@ export type Database = {
         }
         Relationships: []
       }
+      public_leads: {
+        Row: {
+          business_type: string | null
+          created_at: string | null
+          email: string | null
+          goal: string | null
+          id: string
+          ip_address: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          revenue_range: string | null
+          source: string | null
+          status: string | null
+          user_agent: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
+        }
+        Insert: {
+          business_type?: string | null
+          created_at?: string | null
+          email?: string | null
+          goal?: string | null
+          id?: string
+          ip_address?: string | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          revenue_range?: string | null
+          source?: string | null
+          status?: string | null
+          user_agent?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+        }
+        Update: {
+          business_type?: string | null
+          created_at?: string | null
+          email?: string | null
+          goal?: string | null
+          id?: string
+          ip_address?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          revenue_range?: string | null
+          source?: string | null
+          status?: string | null
+          user_agent?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+        }
+        Relationships: []
+      }
       research_findings: {
         Row: {
           content: Json
@@ -1029,6 +1116,7 @@ export type Database = {
       }
     }
     Functions: {
+      is_admin_user: { Args: never; Returns: boolean }
       user_owns_workspace: {
         Args: { workspace_uuid: string }
         Returns: boolean

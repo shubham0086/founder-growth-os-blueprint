@@ -1,73 +1,65 @@
-# Welcome to your Lovable project
+# Creator Growth Engine
 
-## Project info
+A production-ready growth marketing platform with lead capture, admin management, and analytics.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Required Environment Variables
 
-## How can I edit this code?
+```env
+# Supabase (auto-configured by Lovable Cloud)
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_PUBLISHABLE_KEY=your_anon_key
 
-There are several ways of editing your application.
+# Admin Access
+VITE_ADMIN_EMAIL=admin@yourdomain.com
 
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+# Analytics (optional)
+VITE_GA4_ID=G-XXXXXXXXXX
+VITE_META_PIXEL_ID=your_pixel_id
 ```
 
-**Edit a file directly in GitHub**
+## Database Setup
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+The `public_leads` table is created via migration with RLS enabled:
+- **Public users cannot directly insert** - leads are submitted via the `submit-lead` edge function using SERVICE_ROLE_KEY
+- **Only authenticated users can read** - admin access is checked via email match
 
-**Use GitHub Codespaces**
+### RLS Policies
+- `Admin can view public leads` - SELECT for authenticated users
+- `Admin can update public leads` - UPDATE for authenticated users  
+- `Admin can delete public leads` - DELETE for authenticated users
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Setting Admin Email
 
-## What technologies are used for this project?
+1. Set `VITE_ADMIN_EMAIL` in your environment
+2. Or update `src/lib/siteConfig.ts` directly
 
-This project is built with:
+## End-to-End Testing
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+1. **Submit a lead**: Fill out the public lead form on any page using `<PublicLeadForm />`
+2. **View in admin**: Navigate to `/admin` and login with the admin email
+3. **Manage leads**: Update status, add notes, filter and search
+4. **Export CSV**: Click "Export CSV" to download all leads
 
-## How can I deploy this project?
+## Key Features
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+- ✅ Secure lead capture with honeypot + rate limiting
+- ✅ UTM parameter tracking
+- ✅ Admin dashboard with magic link auth
+- ✅ CSV export
+- ✅ GA4 + Meta Pixel integration
+- ✅ Legal pages (Privacy, Terms, Refund)
+- ✅ Dark/Light mode
 
-## Can I connect a custom domain to my Lovable project?
+## Site Configuration
 
-Yes, you can!
+All brand info and links are in `src/lib/siteConfig.ts`:
+- Contact email, WhatsApp number
+- Calendar booking link
+- Sprint payment link
+- Brand name and tagline
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Connecting a Domain
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+1. Go to Lovable → Project Settings → Domains
+2. Click "Connect Domain"
+3. Follow DNS configuration instructions
