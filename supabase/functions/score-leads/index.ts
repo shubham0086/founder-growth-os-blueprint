@@ -79,9 +79,32 @@ serve(async (req) => {
   }
 
   try {
+    // Authentication check
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      console.error('Missing authorization header');
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { authorization: authHeader } }
+    });
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error('Authentication failed:', authError?.message);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Authenticated user: ${user.id}`);
 
     const { workspace_id, lead_id } = await req.json();
 
@@ -92,9 +115,25 @@ serve(async (req) => {
       );
     }
 
+    // Verify user owns this workspace
+    const { data: workspace, error: workspaceError } = await supabase
+      .from("workspaces")
+      .select("id")
+      .eq("id", workspace_id)
+      .eq("user_id", user.id)
+      .single();
+
+    if (workspaceError || !workspace) {
+      console.error('Workspace access denied');
+      return new Response(
+        JSON.stringify({ error: "Access denied to workspace" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     console.log(`Scoring leads for workspace: ${workspace_id}${lead_id ? `, lead: ${lead_id}` : " (all leads)"}`);
 
-    // Fetch leads to score
+    // Fetch leads to score (RLS will enforce workspace ownership)
     let query = supabase
       .from("leads")
       .select("id, name, email, phone, source, stage, utm, gclid, fbclid, referrer, score")
