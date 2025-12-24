@@ -4,9 +4,9 @@ import { supabase } from '@/integrations/supabase/safeClient';
 
 const isDev = import.meta.env.DEV;
 
-// Mock user for development bypass
+// Mock user for development bypass - uses valid UUID format
 const mockUser: User = {
-  id: 'dev-user-123',
+  id: '00000000-0000-0000-0000-000000000001',
   aud: 'authenticated',
   role: 'authenticated',
   email: 'dev@example.com',
