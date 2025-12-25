@@ -51,8 +51,30 @@ export default function OfferBlueprint() {
         mechanism: blueprint.mechanism || '',
         proof: blueprint.proof || '',
       });
-      setTiers((blueprint.tiers as unknown as Tier[]) || []);
-      setObjections((blueprint.objections as unknown as Objection[]) || []);
+      // Safely parse tiers ensuring each tier has a features array
+      const rawTiers = Array.isArray(blueprint.tiers) ? blueprint.tiers : [];
+      const safeTiers = rawTiers.map((tier: unknown) => {
+        const t = tier as Record<string, unknown>;
+        return {
+          name: typeof t?.name === 'string' ? t.name : 'Unnamed Tier',
+          price: typeof t?.price === 'string' ? t.price : '₹0',
+          period: typeof t?.period === 'string' ? t.period : '/month',
+          features: Array.isArray(t?.features) ? t.features : [],
+          popular: Boolean(t?.popular),
+        };
+      });
+      setTiers(safeTiers);
+      
+      // Safely parse objections
+      const rawObjections = Array.isArray(blueprint.objections) ? blueprint.objections : [];
+      const safeObjections = rawObjections.map((obj: unknown) => {
+        const o = obj as Record<string, unknown>;
+        return {
+          objection: typeof o?.objection === 'string' ? o.objection : '',
+          response: typeof o?.response === 'string' ? o.response : '',
+        };
+      });
+      setObjections(safeObjections);
     }
   }, [blueprint]);
 
@@ -306,7 +328,7 @@ export default function OfferBlueprint() {
                     </div>
                   </div>
                   <ul className="space-y-3">
-                    {tier.features.map((feature, i) => (
+                    {(tier.features || []).map((feature, i) => (
                       <li key={i} className="flex items-start gap-3 text-sm">
                         <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                         <span className="text-muted-foreground">{feature}</span>
