@@ -98,7 +98,15 @@ export function useResearch() {
   }, [fetchCompetitors, fetchFindings]);
 
   const addCompetitor = async (url: string) => {
-    if (!workspace?.id || !url) return;
+    if (!url) {
+      toast.error('Please enter a competitor URL');
+      return;
+    }
+    
+    if (!workspace?.id) {
+      toast.error('No workspace selected. Please log in or create a workspace.');
+      return;
+    }
 
     // Extract domain name
     let domain = url.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
@@ -116,11 +124,12 @@ export function useResearch() {
       .single();
 
     if (error) {
-      toast.error('Failed to add competitor');
+      console.error('Error adding competitor:', error);
+      toast.error('Failed to add competitor: ' + error.message);
       return;
     }
 
-    toast.success('Competitor added');
+    toast.success(`Added ${name} as competitor`);
     await fetchCompetitors();
     return data;
   };
