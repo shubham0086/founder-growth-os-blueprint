@@ -12,33 +12,32 @@ serve(async (req) => {
   }
 
   try {
-    // Optional authentication - function works with or without auth
+    // Authentication required
     const authHeader = req.headers.get('authorization');
-    let userId = 'anonymous';
-    
-    if (authHeader) {
-      try {
-        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-        const supabase = createClient(supabaseUrl, supabaseServiceKey);
-        
-        const token = authHeader.replace('Bearer ', '');
-        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-        
-        if (user && !authError) {
-          userId = user.id;
-          console.log(`Authenticated user: ${userId}`);
-        } else {
-          console.log('Auth token provided but invalid, proceeding as anonymous');
-        }
-      } catch (authErr) {
-        console.log('Auth check failed, proceeding as anonymous:', authErr);
-      }
-    } else {
-      console.log('No auth header, proceeding as anonymous');
+    if (!authHeader) {
+      console.error('Missing authorization header');
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    console.log(`Processing request for user: ${userId}`);
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { authorization: authHeader } }
+    });
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error('Authentication failed:', authError?.message);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Authenticated user: ${user.id}`);
 
     const { query, type, sources } = await req.json();
     const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
@@ -47,7 +46,7 @@ serve(async (req) => {
       throw new Error('PERPLEXITY_API_KEY is not configured');
     }
 
-    console.log(`AI Research request - Type: ${type}, Query: ${query}`);
+    console.log(`AI Research request - Type: ${type}, Query: ${query}, User: ${user.id}`);
 
     const systemPrompts: Record<string, string> = {
       pricing: 'You are a market research analyst specializing in pricing strategies. Analyze competitor pricing, identify pricing patterns, and provide actionable insights for pricing decisions.',
@@ -60,7 +59,7 @@ serve(async (req) => {
 
     const systemPrompt = systemPrompts[type] || systemPrompts.general;
 
-    const requestBody: any = {
+    const requestBody: Record<string, unknown> = {
       model: 'sonar-pro',
       messages: [
         { role: 'system', content: systemPrompt },

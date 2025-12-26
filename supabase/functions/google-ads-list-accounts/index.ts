@@ -34,10 +34,53 @@ serve(async (req) => {
   }
 
   try {
+    // Authentication required
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      console.error('Missing authorization header');
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { authorization: authHeader } }
+    });
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error('Authentication failed:', authError?.message);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Authenticated user: ${user.id}`);
+
     const { workspace_id } = await req.json();
 
     if (!workspace_id) {
       throw new Error('workspace_id is required');
+    }
+
+    // Verify user owns this workspace
+    const { data: workspace, error: workspaceError } = await supabase
+      .from('workspaces')
+      .select('id')
+      .eq('id', workspace_id)
+      .eq('user_id', user.id)
+      .single();
+
+    if (workspaceError || !workspace) {
+      console.error('Workspace access denied');
+      return new Response(
+        JSON.stringify({ error: 'Access denied to workspace' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const developerToken = Deno.env.get('GOOGLE_ADS_DEVELOPER_TOKEN');
@@ -45,12 +88,12 @@ serve(async (req) => {
       throw new Error('GOOGLE_ADS_DEVELOPER_TOKEN not configured');
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // Use service role to access connection data (contains sensitive tokens)
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get connection
-    const { data: connection, error: connError } = await supabase
+    const { data: connection, error: connError } = await supabaseAdmin
       .from('google_ads_connections')
       .select('*')
       .eq('workspace_id', workspace_id)
@@ -70,7 +113,7 @@ serve(async (req) => {
       accessToken = newTokens.access_token;
       
       // Update stored token
-      await supabase
+      await supabaseAdmin
         .from('google_ads_connections')
         .update({
           access_token: accessToken,
@@ -135,7 +178,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Found ${accounts.length} Google Ads accounts for workspace:`, workspace_id);
+    console.log(`Found ${accounts.length} Google Ads accounts for workspace: ${workspace_id}`);
 
     return new Response(
       JSON.stringify({ accounts }),
