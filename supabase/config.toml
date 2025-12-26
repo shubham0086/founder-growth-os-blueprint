@@ -1,30 +1,45 @@
 project_id = "fzavetncuqopdbxfdnai"
 
+# Functions that REQUIRE authentication
 [functions.ai-research]
-verify_jwt = false
+verify_jwt = true
 
 [functions.ai-generate]
-verify_jwt = false
+verify_jwt = true
 
 [functions.scrape-competitor]
-verify_jwt = false
+verify_jwt = true
 
 [functions.text-to-speech]
-verify_jwt = false
+verify_jwt = true
 
 [functions.firecrawl-scrape]
-verify_jwt = false
+verify_jwt = true
 
+[functions.google-ads-list-accounts]
+verify_jwt = true
+
+[functions.google-ads-sync]
+verify_jwt = true
+
+[functions.meta-ads-list-accounts]
+verify_jwt = true
+
+[functions.meta-ads-sync]
+verify_jwt = true
+
+[functions.score-leads]
+verify_jwt = true
+
+[functions.ai-insights]
+verify_jwt = true
+
+# Functions that are PUBLIC (intentionally no JWT)
+# OAuth start/callback need to be public for the OAuth flow to work
 [functions.google-ads-auth-start]
 verify_jwt = false
 
 [functions.google-ads-auth-callback]
-verify_jwt = false
-
-[functions.google-ads-list-accounts]
-verify_jwt = false
-
-[functions.google-ads-sync]
 verify_jwt = false
 
 [functions.meta-ads-auth-start]
@@ -33,17 +48,6 @@ verify_jwt = false
 [functions.meta-ads-auth-callback]
 verify_jwt = false
 
-[functions.meta-ads-list-accounts]
-verify_jwt = false
-
-[functions.meta-ads-sync]
-verify_jwt = false
-
-[functions.score-leads]
-verify_jwt = false
-
-[functions.ai-insights]
-verify_jwt = false
-
+# Public lead submission form - uses honeypot + rate limiting instead of auth
 [functions.submit-lead]
 verify_jwt = false

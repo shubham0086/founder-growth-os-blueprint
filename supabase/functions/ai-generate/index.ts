@@ -12,34 +12,32 @@ serve(async (req) => {
   }
 
   try {
-    // Optional authentication - function works with or without auth
+    // Authentication required
     const authHeader = req.headers.get('authorization');
-    let userId = 'anonymous';
-    
-    if (authHeader) {
-      try {
-        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-        const supabase = createClient(supabaseUrl, supabaseServiceKey);
-        
-        // Extract token from header
-        const token = authHeader.replace('Bearer ', '');
-        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-        
-        if (user && !authError) {
-          userId = user.id;
-          console.log(`Authenticated user: ${userId}`);
-        } else {
-          console.log('Auth token provided but invalid, proceeding as anonymous');
-        }
-      } catch (authErr) {
-        console.log('Auth check failed, proceeding as anonymous:', authErr);
-      }
-    } else {
-      console.log('No auth header, proceeding as anonymous');
+    if (!authHeader) {
+      console.error('Missing authorization header');
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    console.log(`Processing request for user: ${userId}`);
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { authorization: authHeader } }
+    });
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error('Authentication failed:', authError?.message);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Authenticated user: ${user.id}`);
 
     const { prompt, type, context } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -48,7 +46,7 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    console.log(`AI Generate request - Type: ${type}`);
+    console.log(`AI Generate request - Type: ${type}, User: ${user.id}`);
 
     const systemPrompts: Record<string, string> = {
       ad_copy: `You are an expert copywriter specializing in high-converting ad copy. Create compelling, persuasive ad copy that drives action. Use the context provided about the offer and target audience.`,
