@@ -12,11 +12,195 @@ import {
   AlertCircle,
   Target,
   DollarSign,
-  Loader2
+  Loader2,
+  Users,
+  TrendingUp,
+  Shield,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useResearch } from "@/hooks/useResearch";
+import { useResearch, Competitor } from "@/hooks/useResearch";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
+function CompetitorCard({ 
+  comp, 
+  analyzing, 
+  onAnalyze 
+}: { 
+  comp: Competitor; 
+  analyzing: string | null;
+  onAnalyze: (id: string, url: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(comp.status === 'analyzed');
+  const analysis = comp.analysis;
+
+  return (
+    <div className="rounded-xl border border-border/50 bg-background/50 hover:border-border transition-all overflow-hidden">
+      {/* Header row */}
+      <div className="flex items-center gap-4 p-4">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted font-semibold text-muted-foreground shrink-0">
+          {comp.name.charAt(0)}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="font-medium text-foreground">{analysis?.companyName || comp.name}</h3>
+            <StatusBadge 
+              status={comp.status === 'analyzed' ? 'success' : comp.status === 'analyzing' ? 'warning' : comp.status === 'error' ? 'error' : 'neutral'} 
+              label={comp.status} 
+            />
+          </div>
+          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            {comp.url && (
+              <a href={`https://${comp.url}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-primary transition-colors">
+                {comp.url}
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+            {analysis?.pricingRange && (
+              <span className="flex items-center gap-1">
+                <DollarSign className="h-3 w-3" />
+                {analysis.pricingRange}
+              </span>
+            )}
+          </div>
+          {analysis?.tagline && (
+            <p className="text-sm text-muted-foreground mt-1 italic">"{analysis.tagline}"</p>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {comp.status === 'analyzed' && (
+            <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </Button>
+              </CollapsibleTrigger>
+            </Collapsible>
+          )}
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => comp.url && onAnalyze(comp.id, comp.url)}
+            disabled={analyzing === comp.id}
+          >
+            {analyzing === comp.id ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {/* Expanded analysis */}
+      {comp.status === 'analyzed' && analysis && (
+        <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+          <CollapsibleContent>
+            <div className="px-4 pb-4 pt-2 border-t border-border/50 bg-muted/20">
+              <div className="grid grid-cols-2 gap-4">
+                {/* Main Offer */}
+                {analysis.mainOffer && (
+                  <div className="col-span-2">
+                    <h4 className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">Main Offer</h4>
+                    <p className="text-sm text-foreground">{analysis.mainOffer}</p>
+                  </div>
+                )}
+
+                {/* Pricing */}
+                {(analysis.pricingModel || analysis.pricingRange) && (
+                  <div>
+                    <h4 className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide flex items-center gap-1">
+                      <DollarSign className="h-3 w-3" /> Pricing
+                    </h4>
+                    <p className="text-sm text-foreground">
+                      {analysis.pricingModel && <span className="font-medium">{analysis.pricingModel}</span>}
+                      {analysis.pricingModel && analysis.pricingRange && ' • '}
+                      {analysis.pricingRange}
+                    </p>
+                  </div>
+                )}
+
+                {/* Target Audience */}
+                {analysis.targetAudience && (
+                  <div>
+                    <h4 className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide flex items-center gap-1">
+                      <Users className="h-3 w-3" /> Target Audience
+                    </h4>
+                    <p className="text-sm text-foreground">{analysis.targetAudience}</p>
+                  </div>
+                )}
+
+                {/* USPs */}
+                {analysis.uniqueSellingPoints && analysis.uniqueSellingPoints.length > 0 && (
+                  <div className="col-span-2">
+                    <h4 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide flex items-center gap-1">
+                      <TrendingUp className="h-3 w-3" /> Unique Selling Points
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {analysis.uniqueSellingPoints.map((usp, i) => (
+                        <span key={i} className="px-2 py-1 text-xs bg-primary/10 text-primary rounded-md">
+                          {usp}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Strengths */}
+                {analysis.strengths && analysis.strengths.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide flex items-center gap-1">
+                      <Shield className="h-3 w-3" /> Strengths
+                    </h4>
+                    <ul className="text-sm text-foreground space-y-1">
+                      {analysis.strengths.map((s, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="text-green-500 mt-1">✓</span> {s}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Weaknesses */}
+                {analysis.weaknesses && analysis.weaknesses.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Potential Weaknesses</h4>
+                    <ul className="text-sm text-foreground space-y-1">
+                      {analysis.weaknesses.map((w, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="text-amber-500 mt-1">⚠</span> {w}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Marketing Angles */}
+                {analysis.marketingAngles && analysis.marketingAngles.length > 0 && (
+                  <div className="col-span-2">
+                    <h4 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide flex items-center gap-1">
+                      <Lightbulb className="h-3 w-3" /> Marketing Angles They Use
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {analysis.marketingAngles.map((angle, i) => (
+                        <span key={i} className="px-2 py-1 text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-md">
+                          {angle}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      )}
+    </div>
+  );
+}
 
 export default function Research() {
   const [newCompetitor, setNewCompetitor] = useState("");
@@ -118,52 +302,12 @@ export default function Research() {
                 </div>
               ) : (
                 competitors.map((comp) => (
-                  <div
-                    key={comp.id}
-                    className="flex items-center gap-4 p-4 rounded-xl border border-border/50 bg-background/50 hover:border-border transition-all"
-                  >
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted font-semibold text-muted-foreground">
-                      {comp.name.charAt(0)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-medium text-foreground">{comp.name}</h3>
-                        <StatusBadge 
-                          status={comp.status === 'analyzed' ? 'success' : comp.status === 'analyzing' ? 'warning' : 'neutral'} 
-                          label={comp.status} 
-                        />
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        {comp.url && (
-                          <a href={`https://${comp.url}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-primary transition-colors">
-                            {comp.url}
-                            <ExternalLink className="h-3 w-3" />
-                          </a>
-                        )}
-                        {comp.pricing && (
-                          <span className="flex items-center gap-1">
-                            <DollarSign className="h-3 w-3" />
-                            {comp.pricing}
-                          </span>
-                        )}
-                      </div>
-                      {comp.offer && (
-                        <p className="text-sm text-muted-foreground mt-1">{comp.offer}</p>
-                      )}
-                    </div>
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      onClick={() => comp.url && analyzeCompetitor(comp.id, comp.url)}
-                      disabled={analyzing === comp.id}
-                    >
-                      {analyzing === comp.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <RefreshCw className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
+                  <CompetitorCard 
+                    key={comp.id} 
+                    comp={comp} 
+                    analyzing={analyzing}
+                    onAnalyze={analyzeCompetitor}
+                  />
                 ))
               )}
             </CardContent>
