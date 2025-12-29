@@ -2,7 +2,7 @@ project_id = "fzavetncuqopdbxfdnai"
 
 # Functions that REQUIRE authentication
 [functions.ai-research]
-verify_jwt = true
+verify_jwt = false
 
 [functions.ai-generate]
 verify_jwt = true
