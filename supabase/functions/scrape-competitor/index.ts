@@ -39,54 +39,12 @@ serve(async (req) => {
 
     console.log(`Authenticated user: ${user.id}`);
 
-    const { url, extractType } = await req.json();
+    const { url } = await req.json();
     const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
-    if (!FIRECRAWL_API_KEY) {
-      // If Firecrawl is not configured, use Perplexity as fallback
-      const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
-      
-      if (!PERPLEXITY_API_KEY) {
-        throw new Error('No scraping API configured');
-      }
-
-      console.log(`Using Perplexity fallback for URL: ${url}`);
-
-      const response = await fetch('https://api.perplexity.ai/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'sonar-pro',
-          messages: [
-            { 
-              role: 'system', 
-              content: 'You are a web scraping assistant. Extract and summarize the key information from the given URL including pricing, features, testimonials, and messaging.' 
-            },
-            { 
-              role: 'user', 
-              content: `Analyze this website and extract key information: ${url}. Focus on: pricing, main offer, unique selling points, testimonials, and key messaging.` 
-            }
-          ],
-          search_domain_filter: [new URL(url).hostname],
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Perplexity API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      return new Response(JSON.stringify({
-        content: data.choices[0].message.content,
-        citations: data.citations || [url],
-        source: 'perplexity',
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY not configured');
     }
 
     // Format URL properly
@@ -95,53 +53,206 @@ serve(async (req) => {
       formattedUrl = `https://${formattedUrl}`;
     }
 
-    console.log(`Scraping URL with Firecrawl: ${formattedUrl}`);
+    let scrapedContent = '';
+    let source = 'perplexity';
 
-    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+    // Try Firecrawl first if available
+    if (FIRECRAWL_API_KEY) {
+      console.log(`Scraping URL with Firecrawl: ${formattedUrl}`);
+
+      try {
+        const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            url: formattedUrl,
+            formats: ['markdown'],
+            onlyMainContent: true,
+          }),
+        });
+
+        if (scrapeResponse.ok) {
+          const scrapeData = await scrapeResponse.json();
+          scrapedContent = scrapeData.data?.markdown || '';
+          source = 'firecrawl';
+          console.log('Firecrawl scrape successful, content length:', scrapedContent.length);
+        } else {
+          console.warn('Firecrawl failed, falling back to Perplexity');
+        }
+      } catch (e) {
+        console.warn('Firecrawl error, falling back to Perplexity:', e);
+      }
+    }
+
+    // Use Perplexity as fallback for web research if no Firecrawl content
+    if (!scrapedContent) {
+      const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
+      if (PERPLEXITY_API_KEY) {
+        console.log(`Using Perplexity for research on: ${formattedUrl}`);
+        
+        const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'sonar',
+            messages: [
+              { 
+                role: 'user', 
+                content: `Research this website and provide detailed information: ${formattedUrl}. Include their main products/services, pricing if visible, unique value proposition, and target audience.` 
+              }
+            ],
+          }),
+        });
+
+        if (perplexityResponse.ok) {
+          const perplexityData = await perplexityResponse.json();
+          scrapedContent = perplexityData.choices?.[0]?.message?.content || '';
+          source = 'perplexity';
+          console.log('Perplexity research successful');
+        }
+      }
+    }
+
+    if (!scrapedContent) {
+      throw new Error('Could not retrieve content from competitor website');
+    }
+
+    // Truncate content for AI analysis (keep to ~4000 chars to stay within context limits)
+    const truncatedContent = scrapedContent.slice(0, 4000);
+
+    // Use Lovable AI to analyze the scraped content and extract structured insights
+    console.log('Analyzing content with Lovable AI...');
+    
+    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        url: formattedUrl,
-        formats: ['markdown'],
-        onlyMainContent: true,
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a competitive intelligence analyst. Analyze the provided website content and extract actionable insights. Be concise and specific. Return valid JSON only, no markdown.`
+          },
+          {
+            role: 'user',
+            content: `Analyze this competitor website content and extract key insights.
+
+Website: ${formattedUrl}
+Content:
+${truncatedContent}
+
+Return a JSON object with these exact fields:
+{
+  "companyName": "The company/brand name",
+  "tagline": "Their main tagline or slogan (if found)",
+  "pricingModel": "How they charge (subscription, one-time, freemium, etc.)",
+  "pricingRange": "Price range or specific prices if found",
+  "mainOffer": "Their primary product/service offering in 1-2 sentences",
+  "uniqueSellingPoints": ["USP 1", "USP 2", "USP 3"],
+  "targetAudience": "Who they target",
+  "strengths": ["Strength 1", "Strength 2"],
+  "weaknesses": ["Potential weakness 1", "Potential weakness 2"],
+  "marketingAngles": ["Angle they use 1", "Angle they use 2"]
+}`
+          }
+        ],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "extract_competitor_analysis",
+              description: "Extract structured competitor analysis from website content",
+              parameters: {
+                type: "object",
+                properties: {
+                  companyName: { type: "string", description: "Company or brand name" },
+                  tagline: { type: "string", description: "Main tagline or slogan" },
+                  pricingModel: { type: "string", description: "How they charge customers" },
+                  pricingRange: { type: "string", description: "Price range or specific prices" },
+                  mainOffer: { type: "string", description: "Primary product/service in 1-2 sentences" },
+                  uniqueSellingPoints: { type: "array", items: { type: "string" }, description: "3-5 USPs" },
+                  targetAudience: { type: "string", description: "Who they target" },
+                  strengths: { type: "array", items: { type: "string" }, description: "2-3 strengths" },
+                  weaknesses: { type: "array", items: { type: "string" }, description: "1-2 potential weaknesses" },
+                  marketingAngles: { type: "array", items: { type: "string" }, description: "2-3 marketing angles they use" }
+                },
+                required: ["companyName", "mainOffer", "uniqueSellingPoints", "targetAudience"],
+                additionalProperties: false
+              }
+            }
+          }
+        ],
+        tool_choice: { type: "function", function: { name: "extract_competitor_analysis" } }
       }),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Firecrawl API error:', response.status, errorText);
-      throw new Error(`Firecrawl API error: ${response.status}`);
+    if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      console.error('Lovable AI error:', aiResponse.status, errorText);
+      
+      if (aiResponse.status === 429) {
+        return new Response(
+          JSON.stringify({ error: 'Rate limit exceeded. Please try again in a moment.' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (aiResponse.status === 402) {
+        return new Response(
+          JSON.stringify({ error: 'AI credits exhausted. Please add credits to continue.' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      throw new Error(`AI analysis failed: ${aiResponse.status}`);
     }
 
-    const data = await response.json();
-    const markdown = data.data?.markdown || '';
-    
-    // Extract pricing and offer info
-    const lines = markdown.split('\n');
-    let pricing = 'Not found';
-    let mainOffer = 'Not found';
-    
-    for (const line of lines) {
-      const lowerLine = line.toLowerCase();
-      if ((lowerLine.includes('₹') || lowerLine.includes('$') || lowerLine.includes('price') || lowerLine.includes('/month')) && pricing === 'Not found') {
-        pricing = line.trim().slice(0, 50);
-      }
-      if ((lowerLine.includes('free') || lowerLine.includes('trial') || lowerLine.includes('guarantee') || lowerLine.includes('offer')) && mainOffer === 'Not found') {
-        mainOffer = line.trim().slice(0, 100);
+    const aiData = await aiResponse.json();
+    console.log('AI response received');
+
+    // Extract the tool call result
+    let analysis: any = {};
+    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+    if (toolCall?.function?.arguments) {
+      try {
+        analysis = JSON.parse(toolCall.function.arguments);
+      } catch (e) {
+        console.error('Failed to parse tool call arguments:', e);
       }
     }
 
-    console.log('Firecrawl scrape completed successfully');
+    // Fallback: try to parse from content if tool call failed
+    if (!analysis.companyName && aiData.choices?.[0]?.message?.content) {
+      try {
+        const content = aiData.choices[0].message.content;
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          analysis = JSON.parse(jsonMatch[0]);
+        }
+      } catch (e) {
+        console.error('Failed to parse content as JSON:', e);
+      }
+    }
+
+    // Ensure we have at least basic data
+    if (!analysis.companyName) {
+      analysis.companyName = new URL(formattedUrl).hostname.replace('www.', '').split('.')[0];
+      analysis.mainOffer = 'Could not extract detailed information';
+    }
+
+    console.log('Analysis complete:', analysis.companyName);
 
     return new Response(JSON.stringify({
-      content: markdown.slice(0, 2000),
-      pricing,
-      mainOffer,
-      metadata: data.data?.metadata || {},
-      source: 'firecrawl',
+      analysis,
+      source,
+      url: formattedUrl,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

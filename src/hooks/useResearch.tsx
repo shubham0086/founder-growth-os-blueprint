@@ -3,14 +3,26 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { useWorkspace } from './useWorkspace';
 import { toast } from 'sonner';
 
-interface Competitor {
+export interface CompetitorAnalysis {
+  companyName?: string;
+  tagline?: string;
+  pricingModel?: string;
+  pricingRange?: string;
+  mainOffer?: string;
+  uniqueSellingPoints?: string[];
+  targetAudience?: string;
+  strengths?: string[];
+  weaknesses?: string[];
+  marketingAngles?: string[];
+}
+
+export interface Competitor {
   id: string;
   name: string;
   url: string | null;
   notes: string | null;
-  status: 'pending' | 'analyzing' | 'analyzed';
-  pricing?: string;
-  offer?: string;
+  status: 'pending' | 'analyzing' | 'analyzed' | 'error';
+  analysis?: CompetitorAnalysis;
 }
 
 interface ResearchFinding {
@@ -43,17 +55,15 @@ export function useResearch() {
       return;
     }
 
-    // Parse notes to extract pricing/offer if stored there
     const parsed = (data || []).map((c) => {
-      let parsed: any = {};
+      let parsedNotes: any = {};
       try {
-        if (c.notes) parsed = JSON.parse(c.notes);
+        if (c.notes) parsedNotes = JSON.parse(c.notes);
       } catch {}
       return {
         ...c,
-        status: parsed.status || 'pending',
-        pricing: parsed.pricing,
-        offer: parsed.offer,
+        status: parsedNotes.status || 'pending',
+        analysis: parsedNotes.analysis,
       } as Competitor;
     });
 
@@ -156,62 +166,65 @@ export function useResearch() {
 
       await fetchCompetitors();
 
-      // Scrape the competitor
-      const { data: scrapeData, error: scrapeError } = await supabase.functions.invoke('scrape-competitor', {
-        body: { url, extractType: 'pricing_offer' },
+      // Scrape and analyze the competitor
+      const { data: result, error: scrapeError } = await supabase.functions.invoke('scrape-competitor', {
+        body: { url },
       });
 
       if (scrapeError) {
         // Check if it's an auth error
         if (scrapeError.message?.includes('401') || scrapeError.message?.includes('JWT')) {
-          // Try to refresh the session
           const { error: refreshError } = await supabase.auth.refreshSession();
           if (refreshError) {
             toast.error('Session expired. Please log in again.');
             return;
           }
-          // Retry the call after refresh
-          const { data: retryData, error: retryError } = await supabase.functions.invoke('scrape-competitor', {
-            body: { url, extractType: 'pricing_offer' },
+          // Retry after refresh
+          const { data: retryResult, error: retryError } = await supabase.functions.invoke('scrape-competitor', {
+            body: { url },
           });
           if (retryError) throw retryError;
-          // Use retryData instead
+          
           await supabase
             .from('competitors')
             .update({
               notes: JSON.stringify({
                 status: 'analyzed',
-                pricing: retryData?.pricing || 'Not found',
-                offer: retryData?.mainOffer || retryData?.content?.slice(0, 100) || 'Not found',
+                analysis: retryResult?.analysis || {},
               }),
             })
             .eq('id', competitorId);
-          toast.success('Competitor analyzed');
+          toast.success('Competitor analyzed successfully');
           return;
         }
         throw scrapeError;
       }
 
-      // Update with results
+      if (result?.error) {
+        throw new Error(result.error);
+      }
+
+      // Update with analysis results
       await supabase
         .from('competitors')
         .update({
           notes: JSON.stringify({
             status: 'analyzed',
-            pricing: scrapeData?.pricing || 'Not found',
-            offer: scrapeData?.mainOffer || scrapeData?.content?.slice(0, 100) || 'Not found',
+            analysis: result?.analysis || {},
           }),
         })
         .eq('id', competitorId);
 
-      toast.success('Competitor analyzed');
-    } catch (err) {
+      toast.success('Competitor analyzed successfully');
+    } catch (err: any) {
       console.error('Analyze error:', err);
       await supabase
         .from('competitors')
-        .update({ notes: JSON.stringify({ status: 'pending' }) })
+        .update({ notes: JSON.stringify({ status: 'error' }) })
         .eq('id', competitorId);
-      toast.error('Failed to analyze competitor');
+      
+      const message = err?.message || 'Failed to analyze competitor';
+      toast.error(message);
     } finally {
       setAnalyzing(null);
       await fetchCompetitors();
