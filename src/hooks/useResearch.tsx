@@ -140,6 +140,14 @@ export function useResearch() {
     setAnalyzing(competitorId);
 
     try {
+      // Verify we have a valid session before calling the edge function
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        toast.error('Please log in to analyze competitors');
+        return;
+      }
+
       // Update status to analyzing
       await supabase
         .from('competitors')
@@ -153,7 +161,36 @@ export function useResearch() {
         body: { url, extractType: 'pricing_offer' },
       });
 
-      if (scrapeError) throw scrapeError;
+      if (scrapeError) {
+        // Check if it's an auth error
+        if (scrapeError.message?.includes('401') || scrapeError.message?.includes('JWT')) {
+          // Try to refresh the session
+          const { error: refreshError } = await supabase.auth.refreshSession();
+          if (refreshError) {
+            toast.error('Session expired. Please log in again.');
+            return;
+          }
+          // Retry the call after refresh
+          const { data: retryData, error: retryError } = await supabase.functions.invoke('scrape-competitor', {
+            body: { url, extractType: 'pricing_offer' },
+          });
+          if (retryError) throw retryError;
+          // Use retryData instead
+          await supabase
+            .from('competitors')
+            .update({
+              notes: JSON.stringify({
+                status: 'analyzed',
+                pricing: retryData?.pricing || 'Not found',
+                offer: retryData?.mainOffer || retryData?.content?.slice(0, 100) || 'Not found',
+              }),
+            })
+            .eq('id', competitorId);
+          toast.success('Competitor analyzed');
+          return;
+        }
+        throw scrapeError;
+      }
 
       // Update with results
       await supabase
