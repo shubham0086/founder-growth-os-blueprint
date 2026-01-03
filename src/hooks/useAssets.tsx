@@ -57,6 +57,7 @@ export function useAssets() {
           prompt,
           type,
           context: {
+            workspaceId: workspace.id,
             industry: workspace.industry,
             name: workspace.name,
           },

@@ -12,7 +12,6 @@ serve(async (req) => {
   }
 
   try {
-    // Authentication required
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
       console.error('Missing authorization header');
@@ -25,7 +24,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { authorization: authHeader } }
+      global: { headers: { Authorization: authHeader } }
     });
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -46,22 +45,263 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
+    // Fetch offer blueprint for rich context
+    let offerContext = null;
+    if (context?.workspaceId) {
+      const { data: blueprint } = await supabase
+        .from('offer_blueprints')
+        .select('*')
+        .eq('workspace_id', context.workspaceId)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (blueprint) {
+        offerContext = {
+          offerName: blueprint.name,
+          promise: blueprint.promise,
+          mechanism: blueprint.mechanism,
+          proof: blueprint.proof,
+          objections: blueprint.objections,
+          tiers: blueprint.tiers,
+        };
+        console.log('Found offer blueprint for context');
+      }
+    }
+
     console.log(`AI Generate request - Type: ${type}, User: ${user.id}`);
 
     const systemPrompts: Record<string, string> = {
-      ad_copy: `You are an expert copywriter specializing in high-converting ad copy. Create compelling, persuasive ad copy that drives action. Use the context provided about the offer and target audience.`,
-      video_script: `You are a video scriptwriter specializing in marketing videos. Create engaging video scripts that capture attention and drive conversions. Include hooks, story beats, and clear CTAs.`,
-      email: `You are an email marketing specialist. Create compelling email sequences that nurture leads and drive conversions. Focus on subject lines, preview text, and body copy.`,
-      landing_page: `You are a conversion-focused landing page copywriter. Create compelling landing page sections that drive conversions. Include headlines, subheadlines, body copy, and CTAs.`,
-      offer: `You are an offer strategist. Help create irresistible offers with clear promises, unique mechanisms, and compelling proof points.`,
-      objection: `You are a sales strategist. Create effective objection handling responses that address concerns while reinforcing value.`,
+      ad_copy: `You are an elite direct-response copywriter who has written ads for 7 and 8-figure businesses. Your ad copy is known for:
+- Pattern-interrupting hooks that stop the scroll
+- Speaking directly to a specific pain point or desire
+- Using proof and specificity to build credibility
+- Creating urgency without being sleazy
+- Clear, compelling calls-to-action
+
+FORMAT YOUR RESPONSE AS:
+**HOOK OPTIONS (choose one):**
+1. [Problem-agitation hook]
+2. [Curiosity hook]
+3. [Social proof hook]
+
+**PRIMARY COPY:**
+[2-3 paragraphs of persuasive body copy]
+
+**CALL TO ACTION:**
+[Strong CTA with urgency element]
+
+**VARIATIONS:**
+- Short version (for character limits)
+- Story angle version
+- Testimonial-style version
+
+Always write in a conversational, human tone. Avoid corporate jargon. Be specific, not generic.`,
+
+      video_script: `You are a top UGC and video ad scriptwriter. Your scripts consistently produce videos with high watch time and conversion rates.
+
+FORMAT YOUR RESPONSE AS:
+
+**HOOK (0-3 seconds):**
+[Pattern interrupt that stops scrolling - be specific]
+
+**PROBLEM/AGITATION (3-15 seconds):**
+[Relatable problem the viewer faces]
+
+**SOLUTION INTRO (15-25 seconds):**
+[Introduce the solution naturally]
+
+**PROOF/MECHANISM (25-45 seconds):**
+[Why this works - be specific with details]
+
+**CTA (45-60 seconds):**
+[Clear next step with urgency]
+
+**VISUAL NOTES:**
+[Suggested b-roll, text overlays, or actions]
+
+**ALTERNATIVE HOOKS:**
+1. [Controversy hook]
+2. [Question hook]
+3. [Story hook]
+
+Write in natural, spoken language. Include pauses and emphasis cues.`,
+
+      email: `You are an email marketing expert who specializes in high-converting sequences. Your emails have high open rates and click-through rates.
+
+FORMAT YOUR RESPONSE AS:
+
+**SUBJECT LINE OPTIONS:**
+1. [Curiosity-driven]
+2. [Benefit-driven]
+3. [Urgency-driven]
+
+**PREVIEW TEXT:**
+[Compelling preview that complements subject]
+
+**EMAIL BODY:**
+[Personalized greeting]
+[Hook - first line that pulls them in]
+[Story/Problem section]
+[Solution/Value section]
+[Social proof element]
+[Clear CTA with button text suggestion]
+[P.S. line with secondary hook]
+
+**FOLLOW-UP ANGLE:**
+[Brief outline for follow-up email if no response]
+
+Write conversationally. Use short paragraphs. One idea per sentence.`,
+
+      creative_brief: `You are a creative director who has led campaigns for major brands. Create detailed briefs that inspire great creative work.
+
+FORMAT YOUR RESPONSE AS:
+
+**CAMPAIGN OVERVIEW:**
+- Objective:
+- Target Audience:
+- Key Message:
+- Tone & Voice:
+
+**VISUAL DIRECTION:**
+- Style:
+- Colors:
+- Imagery:
+- Typography feel:
+
+**CONTENT PIECES NEEDED:**
+1. [Specific asset with dimensions/specs]
+2. [Specific asset with dimensions/specs]
+3. [Specific asset with dimensions/specs]
+
+**KEY MESSAGING:**
+- Headline options:
+- Supporting copy:
+- CTAs:
+
+**DO's AND DON'Ts:**
+- DO: [list]
+- DON'T: [list]
+
+**INSPIRATION/REFERENCES:**
+[Describe the vibe with specific references]`,
+
+      landing_page: `You are a conversion-focused landing page copywriter. Your pages consistently convert at 2-3x industry average.
+
+FORMAT YOUR RESPONSE AS:
+
+**HERO SECTION:**
+- Headline: [Benefit-driven, specific]
+- Subheadline: [Supporting detail]
+- CTA Button: [Action-oriented text]
+
+**PROBLEM SECTION:**
+[3 specific pain points with emotional language]
+
+**SOLUTION SECTION:**
+[How the offer solves each pain point]
+
+**FEATURES/BENEFITS:**
+[Feature 1] → [Benefit 1]
+[Feature 2] → [Benefit 2]
+[Feature 3] → [Benefit 3]
+
+**SOCIAL PROOF SECTION:**
+[Testimonial format suggestions]
+[Stats/numbers to highlight]
+
+**FAQ SECTION:**
+Q1: [Common objection as question]
+A1: [Objection-handling answer]
+
+**FINAL CTA:**
+[Urgency-driven closing with strong CTA]`,
+
+      offer: `You are an offer strategist who has created irresistible offers for 8-figure businesses.
+
+FORMAT YOUR RESPONSE AS:
+
+**OFFER STRUCTURE:**
+- Core Promise: [Specific, measurable outcome]
+- Unique Mechanism: [How this is different]
+- Timeline: [When they'll see results]
+
+**VALUE STACK:**
+1. [Main offer - perceived value $X]
+2. [Bonus 1 - perceived value $X]
+3. [Bonus 2 - perceived value $X]
+4. [Bonus 3 - perceived value $X]
+Total Value: $X
+Your Investment: $X
+
+**RISK REVERSAL:**
+[Guarantee that removes all risk]
+
+**URGENCY/SCARCITY:**
+[Legitimate reason to act now]
+
+**OBJECTION HANDLERS:**
+"But I don't have time..." → [Response]
+"But I've tried before..." → [Response]
+"But it's too expensive..." → [Response]`,
+
+      objection: `You are a sales psychology expert who helps businesses handle objections with empathy and effectiveness.
+
+FORMAT YOUR RESPONSE AS:
+
+**OBJECTION:** [The objection being addressed]
+
+**UNDERLYING CONCERN:**
+[What they're really worried about]
+
+**RESPONSE FRAMEWORK:**
+1. Acknowledge: [Validate their concern]
+2. Reframe: [Shift the perspective]
+3. Evidence: [Proof that addresses it]
+4. Bridge: [Connect back to the offer]
+
+**WORD-FOR-WORD SCRIPT:**
+"I totally understand... [full response]"
+
+**FOLLOW-UP QUESTIONS:**
+[Questions to uncover the real objection if this isn't it]`,
     };
 
-    const systemPrompt = systemPrompts[type] || 'You are a helpful marketing assistant. Provide clear, actionable content.';
+    const systemPrompt = systemPrompts[type] || 'You are a helpful marketing assistant. Provide clear, actionable content with specific examples and formats.';
 
-    const fullPrompt = context 
-      ? `Context about the business/offer:\n${JSON.stringify(context, null, 2)}\n\nRequest:\n${prompt}`
-      : prompt;
+    // Build rich context
+    let fullContext = '';
+    if (context || offerContext) {
+      fullContext = `\n\n=== BUSINESS CONTEXT ===\n`;
+      
+      if (context?.name) {
+        fullContext += `Business Name: ${context.name}\n`;
+      }
+      if (context?.industry) {
+        fullContext += `Industry: ${context.industry}\n`;
+      }
+      
+      if (offerContext) {
+        fullContext += `\n--- OFFER DETAILS ---\n`;
+        if (offerContext.offerName) fullContext += `Offer Name: ${offerContext.offerName}\n`;
+        if (offerContext.promise) fullContext += `Core Promise: ${offerContext.promise}\n`;
+        if (offerContext.mechanism) fullContext += `Unique Mechanism: ${offerContext.mechanism}\n`;
+        if (offerContext.proof) fullContext += `Proof/Results: ${offerContext.proof}\n`;
+        if (offerContext.objections) {
+          fullContext += `Common Objections: ${JSON.stringify(offerContext.objections)}\n`;
+        }
+        if (offerContext.tiers) {
+          fullContext += `Offer Tiers: ${JSON.stringify(offerContext.tiers)}\n`;
+        }
+      }
+      
+      fullContext += `\n=== END CONTEXT ===\n\n`;
+    }
+
+    const fullPrompt = `${fullContext}USER REQUEST:\n${prompt}\n\nProvide a complete, ready-to-use response. Be specific, not generic. Use the business context provided to make this highly relevant.`;
+
+    console.log('Sending request to AI gateway with enriched context');
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
