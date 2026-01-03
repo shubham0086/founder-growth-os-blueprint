@@ -5,7 +5,7 @@ project_id = "fzavetncuqopdbxfdnai"
 verify_jwt = false
 
 [functions.ai-generate]
-verify_jwt = true
+verify_jwt = false
 
 [functions.scrape-competitor]
 verify_jwt = false
